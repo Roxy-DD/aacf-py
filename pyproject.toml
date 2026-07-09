@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aacf"
+version = "0.8.0"
+description = "Agentic AI Compiler Framework — AI workflow pre-compilation and highly controllable scheduling execution engine"
+authors = [
+    {name = "Developer", email = "developer@example.com"},
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "GPL-3.0"}
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "typing_extensions>=4.0.0; python_version < '3.12'",
+    "pyvis>=0.3.2",
+]
+
+[project.optional-dependencies]
+docs = [
+    "pdoc>=14.0.0"
+]
+
+[project.scripts]
+aacf = "aacf.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aacf*"]
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "C90", "I"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pyrefly]
+source = ["examples"]

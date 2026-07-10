@@ -8,21 +8,63 @@
 
 ## Contents
 
-1. [Architecture](#architecture)
-2. [Quick Start](#quick-start)
-3. [Core Concepts](#core-concepts)
-4. [Compiler](#compiler)
-5. [Error Handling](#error-handling)
-6. [Caching](#caching)
-7. [Visualization](#visualization)
-8. [API Reference](#api-reference)
-9. [Advanced Usage](#advanced-usage)
-10. [CLI Tools](#cli-tools)
-11. [MCP Server](#mcp-server)
-12. [i18n](#i18n)
-13. [Project Structure](#project-structure)
-14. [Design Decisions](#design-decisions)
-15. [Troubleshooting](#troubleshooting)
+1. [Design Philosophy](#design-philosophy)
+2. [Architecture](#architecture)
+3. [Quick Start](#quick-start)
+4. [Core Concepts](#core-concepts)
+5. [Compiler](#compiler)
+6. [Error Handling](#error-handling)
+7. [Caching](#caching)
+8. [Visualization](#visualization)
+9. [API Reference](#api-reference)
+10. [Advanced Usage](#advanced-usage)
+11. [CLI Tools](#cli-tools)
+12. [MCP Server](#mcp-server)
+13. [i18n](#i18n)
+14. [Project Structure](#project-structure)
+15. [Design Decisions](#design-decisions)
+16. [Troubleshooting](#troubleshooting)
+
+---
+
+## Design Philosophy
+
+> *You think you're thinking freely. Actually you're thinking freely within the correct range I designed.*
+> *This is not restriction. This is the most elegant liberation.*
+
+**Weak models do powerful things through clear rules. Strong models do rigorous things through constrained freedom.**
+
+Most frameworks try to make AI more autonomous. AACF goes the opposite direction: it makes AI thinking **explicitly rule-bound** — not through temperature knobs, but through structured declarations the model internalizes as its own reasoning.
+
+### Three Levels of Freedom
+
+```
+Level 1 — Chaos:          Model does anything. Unpredictable. Uncontrollable.
+Level 2 — Rigid:          Temperature/top_p suppression. Stable but unexplained.
+Level 3 — Rule-internalized (AACF):  Model "feels" free, but every choice
+                          is within your designed boundaries. Predictable.
+                          Explainable. Controllable.
+```
+
+### Four Dimensions
+
+**For weak models.** The task has been decomposed into simple steps it can handle. The weak model completes "impossible" tasks by following clear rules.
+
+**For strong models.** You've limited the analysis dimensions through `.how()`. The strong model's "free decisions" are entirely within your control.
+
+**For developers.** The five-tuple DSL forces you to think clearly first. Code maintainability and controllability improve dramatically.
+
+**For the system.** Every step is constrained by explicit rules. The system appears dynamic and intelligent, but is fully predictable, explainable, and maintainable.
+
+### Why This Matters More Than "Stronger Models"
+
+```
+Stronger models  ->  Deeper black box, higher cost, more cognitive burden
+More features    ->  Choice explosion, docs can't keep up, users lost
+Better rule design ->  Weak models become capable, strong models become controllable
+```
+
+This is the "open design" principle: the model believes it is making intelligent decisions, while in reality all decisions unfold within the space you explicitly defined. Not a cage — a chessboard. The rules don't limit the game; they make the game possible.
 
 ---
 
@@ -903,7 +945,7 @@ examples/
 
 **Why explicit code override?** Users customize prompts without forking. Start with `pass`, add code when needed, revert anytime.
 
-**Why five-tuple DSL?** Forces atomic thinking about each node. Reduces prompt engineering to structured declarations.
+**Why five-tuple DSL?** Forces atomic thinking about each node. But more importantly, it is the mechanism of "rule-internalized freedom" — the model believes it is reasoning freely, while every dimension of its thinking has been explicitly designed by the developer. Not constraint through suppression, but liberation through structure.
 
 **Why precompilation?** Dependency analysis before execution enables topological ordering, parallel grouping, and early cycle detection.
 

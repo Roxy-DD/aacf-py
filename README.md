@@ -11,6 +11,27 @@ A Python framework for building LLM-driven agent pipelines through decorators, d
 
 ---
 
+## Design Philosophy
+
+> *You think you're thinking freely. Actually you're thinking freely within the correct range I designed.*
+> *This is not restriction. This is the most elegant liberation.*
+
+**Weak models do powerful things through clear rules. Strong models do rigorous things through constrained freedom.**
+
+Most frameworks try to make AI more autonomous. AACF goes the opposite direction: it makes AI thinking **explicitly rule-bound** — not through temperature knobs, but through structured declarations the model internalizes as its own reasoning.
+
+```
+Level 1 — Chaos:          Model does anything. Unpredictable. Uncontrollable.
+Level 2 — Rigid:          Temperature/top_p suppression. Stable but unexplained.
+Level 3 — Rule-internalized (AACF):  Model "feels" free, but every choice
+                          is within your designed boundaries. Predictable.
+                          Explainable. Controllable.
+```
+
+This is the "open design" principle: the model believes it is making intelligent decisions, while in reality all decisions unfold within the space you explicitly defined through `who / what / where / why / how`. Not a cage — a chessboard. The rules don't limit the game; they make the game possible.
+
+---
+
 ## What It Does
 
 You declare AI nodes with a decorator. AACF handles prompt construction, LLM calls, dependency analysis, and execution scheduling.
@@ -35,7 +56,7 @@ print(translate(text="Hello World"))
 
 ## Core Ideas
 
-**Five-tuple DSL.** Reduce prompts to `who / where / what / why / how`. Each AI node is an atomic function with a clear role.
+**Rule-internalized freedom.** The five-tuple DSL (`who / where / what / why / how`) constrains model thinking within designed boundaries — not through temperature, but through explicit rules the model internalizes as its own reasoning.
 
 **Human-controlled flow.** LLMs act as classifiers within nodes, not as controllers. Developers use native Python (`if/elif/for`) to direct data flow.
 

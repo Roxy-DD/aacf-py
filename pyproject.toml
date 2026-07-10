@@ -23,6 +23,9 @@ dependencies = [
 docs = [
     "pdoc>=14.0.0"
 ]
+mcp = [
+    "mcp>=1.0.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -31,10 +34,11 @@ dev = [
 
 [project.scripts]
 aacf = "aacf.cli:app"
+aacf-mcp = "aacf_mcp.server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["aacf*"]
+include = ["aacf*", "aacf_mcp*"]
 
 [tool.ruff]
 line-length = 120

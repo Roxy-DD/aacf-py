@@ -5,7 +5,9 @@
 A Python framework for building LLM-driven agent pipelines through decorators, dependency analysis, and DAG-based scheduling.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![PyPI](https://img.shields.io/pypi/v/aacf.svg)](https://pypi.org/project/aacf/)
 [![License](https://img.shields.io/badge/License-GPL--3.0-orange)](https://www.gnu.org/licenses/gpl-3.0.html)
+[![CI](https://github.com/Roxy-DD/aacf-py/actions/workflows/ci.yml/badge.svg)](https://github.com/Roxy-DD/aacf-py/actions/workflows/ci.yml)
 
 ---
 
@@ -52,7 +54,7 @@ print(translate(text="Hello World"))
 ## Quick Start
 
 ```bash
-pip install -e .
+pip install aacf
 ```
 
 **agents.py** -- Define nodes:
@@ -248,8 +250,12 @@ examples/
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/aacf.git
-cd aacf
+# From PyPI (recommended)
+pip install aacf
+
+# From source
+git clone https://github.com/Roxy-DD/aacf-py.git
+cd aacf-py
 pip install -e .
 ```
 

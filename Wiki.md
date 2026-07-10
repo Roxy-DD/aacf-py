@@ -77,7 +77,7 @@ User Code
 ## Quick Start
 
 ```bash
-pip install -e .
+pip install aacf
 ```
 
 **agents.py** -- Define nodes:
@@ -639,6 +639,27 @@ results = app.run_pipeline(inputs={"step_a": {"text": "input"}})
 
 ---
 
+## CI/CD
+
+### Automated Testing
+
+Every push to `master` and every pull request triggers the CI workflow:
+
+- **Lint** -- `ruff check` + `ruff format --check`
+- **Test** -- `pytest` across Python 3.10, 3.11, 3.12, 3.13 with coverage
+- **Build** -- `python -m build` to verify package builds correctly
+
+### Automated Release
+
+Creating a GitHub Release triggers automatic publishing to PyPI via OIDC Trusted Publisher (no API tokens needed):
+
+1. Update version in `pyproject.toml`
+2. Create and push a tag: `git tag -a v<version> -m "Release v<version>"`
+3. Create a GitHub Release: `gh release create v<version> --title "..." --notes "..."`
+4. GitHub Actions builds and publishes to PyPI automatically
+
+---
+
 ## i18n
 
 Bilingual (Chinese/English) prompts and docstrings.
@@ -727,7 +748,7 @@ examples/
 **ModuleNotFoundError: No module named 'aacf'**
 
 ```bash
-pip install -e .
+pip install aacf
 ```
 
 **Connection refused**

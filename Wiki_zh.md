@@ -77,7 +77,7 @@
 ## 快速开始
 
 ```bash
-pip install -e .
+pip install aacf
 ```
 
 **agents.py** -- 定义节点：
@@ -639,6 +639,27 @@ results = app.run_pipeline(inputs={"step_a": {"text": "input"}})
 
 ---
 
+## CI/CD
+
+### 自动化测试
+
+每次推送到 `master` 和每个 Pull Request 都会触发 CI 工作流：
+
+- **Lint** -- `ruff check` + `ruff format --check`
+- **Test** -- `pytest` 跨 Python 3.10、3.11、3.12、3.13 运行，带覆盖率
+- **Build** -- `python -m build` 验证包构建正确
+
+### 自动化发布
+
+创建 GitHub Release 后通过 OIDC 可信发布商自动发布到 PyPI（无需 API Token）：
+
+1. 更新 `pyproject.toml` 中的版本号
+2. 创建并推送 tag：`git tag -a v<版本> -m "Release v<版本>"`
+3. 创建 GitHub Release：`gh release create v<版本> --title "..." --notes "..."`
+4. GitHub Actions 自动构建并发布到 PyPI
+
+---
+
 ## 国际化
 
 双语（中文/英文）提示词和文档字符串。
@@ -727,7 +748,7 @@ examples/
 **ModuleNotFoundError: No module named 'aacf'**
 
 ```bash
-pip install -e .
+pip install aacf
 ```
 
 **连接被拒绝**

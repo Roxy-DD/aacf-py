@@ -5,7 +5,9 @@
 一个通过装饰器、依赖分析和 DAG 调度构建 LLM 驱动的智能体管道的 Python 框架。
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![PyPI](https://img.shields.io/pypi/v/aacf.svg)](https://pypi.org/project/aacf/)
 [![License](https://img.shields.io/badge/License-GPL--3.0-orange)](https://www.gnu.org/licenses/gpl-3.0.html)
+[![CI](https://github.com/Roxy-DD/aacf-py/actions/workflows/ci.yml/badge.svg)](https://github.com/Roxy-DD/aacf-py/actions/workflows/ci.yml)
 
 ---
 
@@ -52,7 +54,7 @@ print(translate(text="Hello World"))
 ## 快速开始
 
 ```bash
-pip install -e .
+pip install aacf
 ```
 
 **agents.py** -- 定义节点：
@@ -248,8 +250,12 @@ examples/
 ## 安装
 
 ```bash
-git clone https://github.com/yourusername/aacf.git
-cd aacf
+# 从 PyPI 安装（推荐）
+pip install aacf
+
+# 从源码安装
+git clone https://github.com/Roxy-DD/aacf-py.git
+cd aacf-py
 pip install -e .
 ```
 

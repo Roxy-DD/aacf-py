@@ -244,7 +244,7 @@ def init(
             '        language="zh",  # "zh" (中文) or "en" (English)\n'
             "    ),\n"
             ")\n\n\n"
-            '@app.node(who="助手", what="向用户打招呼")\n'
+            '@app.node("hello").who("助手").what("向用户打招呼")\n'
             "def hello(name: str):\n"
             "    pass\n",
             encoding="utf-8",

@@ -292,6 +292,7 @@ def my_node(param: str):
 config = LLMConfig(
     model="qwen2.5-7b-instruct",
     url="http://localhost:8080/v1/chat/completions",
+    api_key="",  # optional, omit for local models
     temperature=0.7,
     max_tokens=1024,
     language="en",
@@ -300,6 +301,8 @@ config = LLMConfig(
 # Derive new config (original unchanged)
 hot_config = config(temperature=1.2)
 ```
+
+Uses **OpenAI-compatible Chat Completions API** (`POST /v1/chat/completions`). Works with OpenAI, DeepSeek, Azure OpenAI, vLLM, Ollama, LM Studio, LocalAI, and more. See [Wiki.md](Wiki.md) for full configuration guide.
 
 ---
 

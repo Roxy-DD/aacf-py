@@ -495,6 +495,7 @@ from aacf import (
 config = LLMConfig(
     model="qwen2.5-7b-instruct",
     url="http://localhost:8080/v1/chat/completions",
+    api_key="",  # optional, omit for local models
     temperature=0.7,
     max_tokens=1024,
     stream=False,
@@ -505,11 +506,82 @@ config = LLMConfig(
 hot_config = config(temperature=1.2)  # derive; original unchanged
 ```
 
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `model` | `str` | `"qwen2.5-7b-instruct"` | Model name |
+| `url` | `str` | `"http://127.0.0.1:8080/v1/chat/completions"` | API endpoint (OpenAI-compatible `/v1/chat/completions`) |
+| `api_key` | `str` | `""` | API key for authentication. Optional for local models |
+| `temperature` | `float` | `0.7` | Sampling temperature (0-2) |
+| `max_tokens` | `int` | `1024` | Max output tokens |
+| `stream` | `bool` | `False` | Enable streaming output |
+| `json_mode` | `bool` | `False` | Force JSON output format |
+| `language` | `str` | `"zh"` | Prompt language, `"zh"` or `"en"` |
+
 | Method | Description |
 |--------|-------------|
 | `__call__(**kwargs)` | Create derived config copy |
 | `get_dict()` | Get config as dict |
 | `get_language()` | Get prompt language |
+
+### Online Model Configuration
+
+AACF uses the **OpenAI-compatible Chat Completions API** protocol (`POST /v1/chat/completions`). Any service implementing this standard is supported.
+
+**Supported providers:**
+
+| Provider | Example `url` | `api_key` required |
+|----------|--------------|--------------------|
+| OpenAI | `https://api.openai.com/v1/chat/completions` | Yes |
+| DeepSeek | `https://api.deepseek.com/v1/chat/completions` | Yes |
+| Azure OpenAI | `https://{resource}.openai.azure.com/openai/deployments/{deployment}/chat/completions?api-version=2024-02-15-preview` | Yes |
+| vLLM | `http://localhost:8000/v1/chat/completions` | Optional |
+| Ollama | `http://localhost:11434/v1/chat/completions` | No |
+| LM Studio | `http://localhost:1234/v1/chat/completions` | No |
+| LocalAI | `http://localhost:8080/v1/chat/completions` | Optional |
+
+**Example: using OpenAI GPT-4o**
+
+```python
+from aacf import AACF, LLMConfig
+
+app = AACF(
+    __name__,
+    config=LLMConfig(
+        model="gpt-4o",
+        url="https://api.openai.com/v1/chat/completions",
+        api_key="sk-xxxxxxxxxxxxxxxx",  # your API key
+        language="en",
+    ),
+)
+```
+
+**Example: using DeepSeek**
+
+```python
+app = AACF(
+    __name__,
+    config=LLMConfig(
+        model="deepseek-chat",
+        url="https://api.deepseek.com/v1/chat/completions",
+        api_key="sk-xxxxxxxxxxxxxxxx",
+        language="zh",
+    ),
+)
+```
+
+**Example: local model (no API key needed)**
+
+```python
+app = AACF(
+    __name__,
+    config=LLMConfig(
+        model="qwen2.5-7b-instruct",
+        url="http://localhost:8080/v1/chat/completions",
+        # no api_key needed for local deployment
+        language="zh",
+    ),
+)
+```
 
 ### `llm_call()`
 

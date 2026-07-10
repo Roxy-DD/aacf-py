@@ -270,6 +270,7 @@ Claude Desktop（`claude_desktop_config.json`）：
 config = LLMConfig(
     model="qwen2.5-7b-instruct",
     url="http://localhost:8080/v1/chat/completions",
+    api_key="",  # 可选，本地模型可省略
     temperature=0.7,
     max_tokens=1024,
     language="zh",
@@ -278,6 +279,8 @@ config = LLMConfig(
 # 派生新配置（原配置不变）
 hot_config = config(temperature=1.2)
 ```
+
+使用 **OpenAI 兼容的 Chat Completions API**（`POST /v1/chat/completions`），支持 OpenAI、DeepSeek、Azure OpenAI、vLLM、Ollama、LM Studio、LocalAI 等。完整配置指南见 [Wiki_zh.md](Wiki_zh.md)。
 
 ---
 

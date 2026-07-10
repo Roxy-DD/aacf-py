@@ -358,6 +358,7 @@ class LLMConfigKwargs(TypedDict, total=False):
         stream: 是否流式输出 / Enable streaming output (default: False)
         json_mode: 是否强制 JSON 输出 / Force JSON output format (default: False)
         url: API 端点地址 / API endpoint URL (default: "http://127.0.0.1:8080/v1/chat/completions")
+        api_key: API 密钥（本地模型可省略）/ API key (optional for local models)
         language: Prompt 语言 / Prompt language, "zh" or "en" (default: "zh")
     """
 
@@ -367,6 +368,7 @@ class LLMConfigKwargs(TypedDict, total=False):
     stream: bool
     json_mode: bool
     url: str
+    api_key: str
     language: str
 
 

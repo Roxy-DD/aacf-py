@@ -495,6 +495,7 @@ from aacf import (
 config = LLMConfig(
     model="qwen2.5-7b-instruct",
     url="http://localhost:8080/v1/chat/completions",
+    api_key="",  # 可选，本地模型可省略
     temperature=0.7,
     max_tokens=1024,
     stream=False,
@@ -505,11 +506,82 @@ config = LLMConfig(
 hot_config = config(temperature=1.2)  # 派生；原配置不变
 ```
 
+| 参数 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `model` | `str` | `"qwen2.5-7b-instruct"` | 模型名称 |
+| `url` | `str` | `"http://127.0.0.1:8080/v1/chat/completions"` | API 端点（OpenAI 兼容的 `/v1/chat/completions`） |
+| `api_key` | `str` | `""` | API 密钥，本地模型可省略 |
+| `temperature` | `float` | `0.7` | 采样温度（0-2） |
+| `max_tokens` | `int` | `1024` | 最大输出 token 数 |
+| `stream` | `bool` | `False` | 是否流式输出 |
+| `json_mode` | `bool` | `False` | 是否强制 JSON 输出 |
+| `language` | `str` | `"zh"` | Prompt 语言，`"zh"` 或 `"en"` |
+
 | 方法 | 描述 |
 |------|------|
 | `__call__(**kwargs)` | 创建派生配置副本 |
 | `get_dict()` | 获取配置字典 |
 | `get_language()` | 获取提示词语言 |
+
+### 在线模型接入
+
+AACF 使用 **OpenAI 兼容的 Chat Completions API** 协议（`POST /v1/chat/completions`），任何实现该标准的服务均可接入。
+
+**支持的服务商：**
+
+| 服务商 | `url` 示例 | 是否需要 `api_key` |
+|--------|-----------|------------------|
+| OpenAI | `https://api.openai.com/v1/chat/completions` | 是 |
+| DeepSeek | `https://api.deepseek.com/v1/chat/completions` | 是 |
+| Azure OpenAI | `https://{resource}.openai.azure.com/openai/deployments/{deployment}/chat/completions?api-version=2024-02-15-preview` | 是 |
+| vLLM | `http://localhost:8000/v1/chat/completions` | 可选 |
+| Ollama | `http://localhost:11434/v1/chat/completions` | 否 |
+| LM Studio | `http://localhost:1234/v1/chat/completions` | 否 |
+| LocalAI | `http://localhost:8080/v1/chat/completions` | 可选 |
+
+**示例：使用 OpenAI GPT-4o**
+
+```python
+from aacf import AACF, LLMConfig
+
+app = AACF(
+    __name__,
+    config=LLMConfig(
+        model="gpt-4o",
+        url="https://api.openai.com/v1/chat/completions",
+        api_key="sk-xxxxxxxxxxxxxxxx",  # 你的 API 密钥
+        language="en",
+    ),
+)
+```
+
+**示例：使用 DeepSeek**
+
+```python
+app = AACF(
+    __name__,
+    config=LLMConfig(
+        model="deepseek-chat",
+        url="https://api.deepseek.com/v1/chat/completions",
+        api_key="sk-xxxxxxxxxxxxxxxx",
+        language="zh",
+    ),
+)
+```
+
+**示例：本地模型（无需 API 密钥）**
+
+```python
+app = AACF(
+    __name__,
+    config=LLMConfig(
+        model="qwen2.5-7b-instruct",
+        url="http://localhost:8080/v1/chat/completions",
+        # 本地部署无需 api_key
+        language="zh",
+    ),
+)
+```
 
 ### `llm_call()`
 

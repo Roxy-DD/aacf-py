@@ -11,8 +11,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-from aacf.compiler import DependencyAnalyzer
-
 
 def _load_project_module(project_path: str):
     """
@@ -28,8 +26,7 @@ def _load_project_module(project_path: str):
         agents_file = root / "src" / "agents.py"
     if not agents_file.exists():
         raise FileNotFoundError(
-            f"No agents.py found in {project_path}. "
-            f"Expected at: {root / 'agents.py'} or {root / 'src' / 'agents.py'}"
+            f"No agents.py found in {project_path}. Expected at: {root / 'agents.py'} or {root / 'src' / 'agents.py'}"
         )
 
     spec = importlib.util.spec_from_file_location("agents", agents_file)

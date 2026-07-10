@@ -7,7 +7,6 @@ Tools for initializing, reading, and validating AACF projects.
 初始化、读取和验证 AACF 项目的工具。
 """
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -78,7 +77,7 @@ if __name__ == "__main__":
         (project_dir / "main.py").write_text(main_content, encoding="utf-8")
 
         # Create README.md
-        readme_content = f'''# {project_name}
+        readme_content = f"""# {project_name}
 
 An AACF-powered AI agent project.
 
@@ -92,11 +91,11 @@ source .venv/bin/activate  # Linux/macOS
 # Run the project
 python main.py
 ```
-'''
+"""
         (project_dir / "README.md").write_text(readme_content, encoding="utf-8")
 
         # Create .gitignore
-        gitignore_content = '''__pycache__/
+        gitignore_content = """__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -119,7 +118,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-'''
+"""
         (project_dir / ".gitignore").write_text(gitignore_content, encoding="utf-8")
 
         # Create virtual environment and install aacf (optional)
@@ -150,7 +149,7 @@ wheels/
                 venv_created = True
             except subprocess.TimeoutExpired:
                 pass  # venv creation timed out
-            except Exception as e:
+            except Exception:
                 pass  # venv creation is optional
 
         result_lines = [
@@ -166,15 +165,15 @@ wheels/
         if venv_created:
             result_lines.append("  - .venv/ (virtual environment with aacf installed)")
         else:
-            result_lines.append(
-                "  - .venv/ creation failed (please create manually with: python -m venv .venv)"
-            )
+            result_lines.append("  - .venv/ creation failed (please create manually with: python -m venv .venv)")
 
-        result_lines.extend([
-            "",
-            "Next steps:",
-            f"  cd {project_name}",
-        ])
+        result_lines.extend(
+            [
+                "",
+                "Next steps:",
+                f"  cd {project_name}",
+            ]
+        )
 
         if venv_created:
             if sys.platform == "win32":
@@ -219,7 +218,7 @@ wheels/
         lines = [f"Project structure at {root}:", ""]
 
         # Get all files (excluding .venv and __pycache__)
-        exclude_dirs = {'.venv', 'venv', '__pycache__', '.git', 'node_modules'}
+        exclude_dirs = {".venv", "venv", "__pycache__", ".git", "node_modules"}
 
         for item in sorted(root.rglob("*")):
             # Skip excluded directories
@@ -227,7 +226,7 @@ wheels/
                 continue
 
             # Skip hidden files except .gitignore
-            if item.name.startswith('.') and item.name != '.gitignore':
+            if item.name.startswith(".") and item.name != ".gitignore":
                 continue
 
             # Calculate relative path

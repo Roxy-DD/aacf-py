@@ -26,10 +26,7 @@ def _find_agents_file(project_path: str) -> Path:
     for c in candidates:
         if c.exists():
             return c
-    raise FileNotFoundError(
-        f"No agents.py found in {project_path}. "
-        f"Expected at: {candidates[0]} or {candidates[1]}"
-    )
+    raise FileNotFoundError(f"No agents.py found in {project_path}. Expected at: {candidates[0]} or {candidates[1]}")
 
 
 def _parse_nodes_from_file(filepath: Path) -> list[dict]:
@@ -152,13 +149,13 @@ def register_node_tools(mcp):
         if how:
             chain_methods.append(f'.how("{how}")')
         if stream:
-            chain_methods.append('.stream(True)')
+            chain_methods.append(".stream(True)")
         if format:
             chain_methods.append(f'.format("{format}")')
         if cache_enabled:
-            chain_methods.append(f'.cache(ttl={cache_ttl})' if cache_ttl > 0 else '.cache()')
+            chain_methods.append(f".cache(ttl={cache_ttl})" if cache_ttl > 0 else ".cache()")
         if max_retries != 3:
-            chain_methods.append(f'.retry(max_attempts={max_retries})')
+            chain_methods.append(f".retry(max_attempts={max_retries})")
 
         chain_str = "".join(chain_methods) if chain_methods else ""
 
@@ -199,15 +196,12 @@ def {name}(text: str):
         for i, n in enumerate(nodes, 1):
             lines.append(f"  {i}. {n['name']} (line {n['lineno']})")
             lines.append(f"     Decorator: {n['decorator']}")
-            params = ", ".join(
-                f"{p['name']}: {p['type']}" if p['type'] else p['name']
-                for p in n['params']
-            )
+            params = ", ".join(f"{p['name']}: {p['type']}" if p["type"] else p["name"] for p in n["params"])
             lines.append(f"     Params: {params or '(none)'}")
-            mode = "LLM auto-call" if not n['has_body_code'] else "Explicit code override"
+            mode = "LLM auto-call" if not n["has_body_code"] else "Explicit code override"
             lines.append(f"     Mode: {mode}")
-            if n['docstring']:
-                first_line = n['docstring'].split('\n')[0].strip()
+            if n["docstring"]:
+                first_line = n["docstring"].split("\n")[0].strip()
                 lines.append(f"     Doc: {first_line}")
             lines.append("")
 
@@ -228,16 +222,13 @@ def {name}(text: str):
 
         target = None
         for n in nodes:
-            if n['name'] == node_name:
+            if n["name"] == node_name:
                 target = n
                 break
 
         if target is None:
-            available = ", ".join(n['name'] for n in nodes)
-            return (
-                f"Node '{node_name}' not found in {agents_file.name}.\n"
-                f"Available nodes: {available or '(none)'}"
-            )
+            available = ", ".join(n["name"] for n in nodes)
+            return f"Node '{node_name}' not found in {agents_file.name}.\nAvailable nodes: {available or '(none)'}"
 
         lines = [
             f"Node: {target['name']}",
@@ -247,14 +238,14 @@ def {name}(text: str):
             "",
             "Parameters:",
         ]
-        for p in target['params']:
-            type_str = f": {p['type']}" if p['type'] else ""
+        for p in target["params"]:
+            type_str = f": {p['type']}" if p["type"] else ""
             lines.append(f"  - {p['name']}{type_str}")
 
-        if target['docstring']:
+        if target["docstring"]:
             lines.append("")
             lines.append("Docstring:")
-            for line in target['docstring'].split('\n'):
+            for line in target["docstring"].split("\n"):
                 lines.append(f"  {line}")
 
         return "\n".join(lines)
@@ -296,12 +287,12 @@ def {name}(text: str):
         # New format: @app.node("name").who(...).what(...).cache(...)
         # Old format: @app.node(who="...", what="...")
         # Match only the decorator line(s), not the function definition
-        dec_pattern = rf'(@app\.node\([^)]*\)(?:\.[\w]+\([^)]*\))*)\s*\n\s*def\s+{re.escape(node_name)}'
+        dec_pattern = rf"(@app\.node\([^)]*\)(?:\.[\w]+\([^)]*\))*)\s*\n\s*def\s+{re.escape(node_name)}"
         dec_match = re.search(dec_pattern, source, re.DOTALL)
 
         if not dec_match:
             # Try simpler pattern to check if node exists
-            pattern2 = rf'def\s+{re.escape(node_name)}\s*\('
+            pattern2 = rf"def\s+{re.escape(node_name)}\s*\("
             if not re.search(pattern2, source):
                 return f"Node '{node_name}' not found in {agents_file.name}."
             return (
@@ -315,14 +306,14 @@ def {name}(text: str):
 
         # Parse existing chainable methods
         # Extract the base @app.node("name") part
-        base_match = re.match(r'@app\.node\(([^)]*)\)', full_decorator)
+        base_match = re.match(r"@app\.node\(([^)]*)\)", full_decorator)
         if not base_match:
             return f"Could not parse base decorator for node '{node_name}'."
 
         node_name_arg = base_match.group(1).strip()
 
         # Extract existing chainable methods
-        chain_methods = re.findall(r'\.(\w+)\(([^)]*)\)', full_decorator[len(base_match.group(0)):])
+        chain_methods = re.findall(r"\.(\w+)\(([^)]*)\)", full_decorator[len(base_match.group(0)) :])
 
         # Build new chain methods, replacing existing ones with same name
         new_chains = {}
@@ -332,28 +323,28 @@ def {name}(text: str):
         # Apply overrides
         if cache_enabled is not None:
             if cache_ttl is not None:
-                new_chains['cache'] = f'ttl={cache_ttl}'
+                new_chains["cache"] = f"ttl={cache_ttl}"
             else:
-                new_chains['cache'] = ''
+                new_chains["cache"] = ""
         if max_retries is not None:
             if retry_delay is not None:
-                new_chains['retry'] = f'max_attempts={max_retries}, delay={retry_delay}'
+                new_chains["retry"] = f"max_attempts={max_retries}, delay={retry_delay}"
             else:
-                new_chains['retry'] = f'max_attempts={max_retries}'
+                new_chains["retry"] = f"max_attempts={max_retries}"
         if timeout is not None:
-            new_chains['timeout'] = str(timeout)
+            new_chains["timeout"] = str(timeout)
         if stream is not None:
-            new_chains['stream'] = str(stream).lower()
+            new_chains["stream"] = str(stream).lower()
         if format is not None:
-            new_chains['format'] = f'"{format}"'
+            new_chains["format"] = f'"{format}"'
 
         # Build new decorator
-        new_decorator = f'@app.node({node_name_arg})'
+        new_decorator = f"@app.node({node_name_arg})"
         for method_name, method_args in new_chains.items():
             if method_args:
-                new_decorator += f'.{method_name}({method_args})'
+                new_decorator += f".{method_name}({method_args})"
             else:
-                new_decorator += f'.{method_name}()'
+                new_decorator += f".{method_name}()"
 
         # Replace old decorator with new one
         new_source = source.replace(full_decorator, new_decorator, 1)
@@ -375,7 +366,4 @@ def {name}(text: str):
         if format is not None:
             changes.append(f'format="{format}"')
 
-        return (
-            f"Node '{node_name}' configuration updated in {agents_file.name}.\n"
-            f"Changes: {', '.join(changes)}"
-        )
+        return f"Node '{node_name}' configuration updated in {agents_file.name}.\nChanges: {', '.join(changes)}"

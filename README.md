@@ -34,6 +34,8 @@ Level 3 — Rule-internalized (AACF):  Model "feels" free, but every choice
 
 This is the "open design" principle: the model believes it is making intelligent decisions, while in reality all decisions unfold within the space you explicitly defined through `who / what / where / why / how`. Not a cage — a chessboard. The rules don't limit the game; they make the game possible.
 
+At its core, AACF is not about technical showmanship. It is a **human-centered design philosophy**: let humans think through the logic first, then let models execute; crystallize human wisdom into standardized processes, then let AI amplify the efficiency of those processes. It is also an attempt at **AI democratization**: no need to stack compute or buy expensive APIs — with well-designed processes, any developer can build complex AI applications using local small models. The cost barrier is leveled by the wisdom of design.
+
 ---
 
 ## What It Does

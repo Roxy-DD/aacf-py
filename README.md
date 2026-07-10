@@ -28,7 +28,7 @@ def translate(text: str):
     pass
 
 print(translate(text="Hello World"))
-# -> 你好世界
+# -> Hello World
 ```
 
 ---

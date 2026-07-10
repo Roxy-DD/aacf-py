@@ -18,10 +18,11 @@
 8. [API 参考](#api-参考)
 9. [高级用法](#高级用法)
 10. [CLI 工具](#cli-工具)
-11. [国际化](#国际化)
-12. [项目结构](#项目结构)
-13. [设计决策](#设计决策)
-14. [故障排除](#故障排除)
+11. [MCP 服务](#mcp-服务)
+12. [国际化](#国际化)
+13. [项目结构](#项目结构)
+14. [设计决策](#设计决策)
+15. [故障排除](#故障排除)
 
 ---
 
@@ -173,7 +174,7 @@ translator = builder.build()
 ### 显式代码覆盖
 
 ```python
-@app.node(who="Analyzer", what="Analyze text")
+@app.node("analyzer").who("Analyzer").what("Analyze text")
 def analyzer(text: str):
     from aacf.core import llm_call
     return llm_call(
@@ -541,7 +542,7 @@ def llm_call(
 ### 流式输出
 
 ```python
-@app.node(who="Writer", what="Write a short story", stream=True)
+@app.node("writer").who("Writer").what("Write a short story").stream(True)
 def writer(topic: str):
     pass
 
@@ -552,7 +553,7 @@ for chunk in writer(topic="Cyberpunk city"):
 ### 结构化 JSON
 
 ```python
-@app.node(who="Extractor", what="Extract person info", format="json")
+@app.node("extractor").who("Data Extractor").what("Extract person info").format("json")
 def extractor(text: str):
     pass
 
@@ -563,7 +564,7 @@ data = json.loads(extractor(text="Li Lei, 28, engineer"))
 ### 智能路由
 
 ```python
-@app.node(who="Router", what="Route requests", module=[writer, extractor])
+@app.node("router").who("Router").what("Route requests").module([writer, extractor])
 def router(user_req: str):
     pass
 
@@ -573,15 +574,15 @@ router(user_req="Write me a poem")  # 自动分派到 writer
 ### 条件分支
 
 ```python
-@app.node(who="Branch A", what="Handle type A")
+@app.node("branch_a").who("Branch A").what("Handle type A")
 def branch_a(text: str):
     return f"A: {text}"
 
-@app.node(who="Branch B", what="Handle type B")
+@app.node("branch_b").who("Branch B").what("Handle type B")
 def branch_b(text: str):
     return f"B: {text}"
 
-@app.node(who="Router", what="Route by type", branches={"a": branch_a, "b": branch_b})
+@app.node("router").who("Router").what("Route by type")
 def router(text: str):
     return "a"  # 返回分支键
 ```
@@ -598,11 +599,7 @@ result = writer(
 ### 自定义输出格式
 
 ```python
-@app.node(
-    who="Summarizer",
-    what="Summarize text",
-    out="Use bullet points, max 5 items, each under 20 words"
-)
+@app.node("summarizer").who("Summarizer").what("Summarize text").out("Use bullet points, max 5 items, each under 20 words")
 def summarizer(text: str):
     pass
 ```
@@ -612,11 +609,11 @@ def summarizer(text: str):
 ```python
 app = AACF(__name__)
 
-@app.node(who="A", what="First step")
+@app.node("step_a").who("A").what("First step")
 def step_a(text: str):
     return f"processed_{text}"
 
-@app.node(who="B", what="Second step")
+@app.node("step_b").who("B").what("Second step")
 def step_b(step_a: str):
     return f"final_{step_a}"
 
@@ -636,6 +633,75 @@ results = app.run_pipeline(inputs={"step_a": {"text": "input"}})
 | `aacf sync <path>` | 注入文档字符串到源码 |
 | `aacf watch <path>` | 监听并自动注入 |
 | `aacf doc <module>` | API 文档服务器 |
+
+---
+
+## MCP 服务
+
+AACF 提供 MCP（Model Context Protocol）服务器，用于 AI 辅助开发。AI 客户端（如 Claude Desktop）可以使用 AACF 工具来帮助构建和管理项目。
+
+### 安装
+
+```bash
+pip install aacf[mcp]
+```
+
+### 使用
+
+```bash
+# 启动 MCP 服务器（stdio 模式）
+aacf-mcp
+
+# 或作为 Python 模块运行
+python -m aacf_mcp
+```
+
+### 客户端配置
+
+Claude Desktop（`claude_desktop_config.json`）：
+
+```json
+{
+  "mcpServers": {
+    "aacf": {
+      "command": "aacf-mcp"
+    }
+  }
+}
+```
+
+### 可用工具
+
+| 类别 | 工具 | 描述 |
+|------|------|------|
+| **项目** | `init_project` | 初始化新 AACF 项目 |
+| | `read_project` | 读取项目结构/文件 |
+| | `validate_project` | 验证项目配置 |
+| **节点** | `create_node` | 在 agents.py 中创建新节点 |
+| | `list_nodes` | 列出项目中所有节点 |
+| | `get_node_info` | 获取节点详细信息 |
+| | `configure_node` | 修改节点配置 |
+| **管道** | `compile_pipeline` | 编译并分析依赖 |
+| | `get_dependency_graph` | 获取 DAG 依赖图 |
+| | `get_execution_order` | 获取拓扑执行顺序 |
+| | `get_parallel_groups` | 获取并行执行分组 |
+| | `run_pipeline` | 执行管道 |
+
+### 架构
+
+MCP 服务器使用 `FastMCP`（高层 Python SDK）和 stdio 传输。所有工具通过读写 AACF 项目中的 Python 文件操作，不修改核心 AACF 运行时。这确保了 AI 辅助层与框架本身的清晰分离。
+
+源码位于 `aacf_mcp/`：
+
+```
+aacf_mcp/
+  __init__.py        # 导出：create_server
+  server.py          # FastMCP 服务器 + 入口
+  tools/
+    nodes.py         # 节点管理工具（4）
+    pipeline.py      # 管道分析工具（5）
+    project.py       # 项目管理工具（3）
+```
 
 ---
 
@@ -701,6 +767,18 @@ aacf/
   cli.py             # CLI 命令
   _messages.py       # 双语提示模板
   py.typed           # PEP 561 类型标记
+```
+
+### MCP（可选）
+
+```
+aacf_mcp/
+  __init__.py        # 导出：create_server
+  server.py          # FastMCP 服务器 + stdio 传输
+  tools/
+    nodes.py         # 节点管理工具
+    pipeline.py      # 管道分析工具
+    project.py       # 项目管理工具
 ```
 
 ### 测试

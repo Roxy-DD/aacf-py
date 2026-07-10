@@ -29,9 +29,14 @@ def _load_project_module(project_path: str):
             f"No agents.py found in {project_path}. Expected at: {root / 'agents.py'} or {root / 'src' / 'agents.py'}"
         )
 
-    spec = importlib.util.spec_from_file_location("agents", agents_file)
+    # Use unique module name to avoid conflicts between different projects
+    module_name = f"_aacfg_mcp_agents_{root.name}"
+    if module_name in sys.modules:
+        del sys.modules[module_name]
+
+    spec = importlib.util.spec_from_file_location(module_name, agents_file)
     module = importlib.util.module_from_spec(spec)
-    sys.modules["agents"] = module
+    sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -49,6 +54,26 @@ def _get_app_from_module(module):
     return None
 
 
+def _compile_and_get_analyzer(project_path: str):
+    """
+    Load project, get app, and compile pipeline. Returns (app, analyzer) or error string.
+    加载项目、获取 app 并编译管道。返回 (app, analyzer) 或错误字符串。
+    """
+    module = _load_project_module(project_path)
+    app = _get_app_from_module(module)
+
+    if app is None:
+        return None, None, "Error: No AACF app instance found in agents.py."
+
+    planner = app.compile()
+    analyzer = planner.analyzer
+
+    if analyzer is None:
+        return None, None, "Error: Compilation failed - no dependency analyzer created."
+
+    return app, analyzer, None
+
+
 def register_pipeline_tools(mcp):
     """Register all pipeline management tools with the MCP server."""
 
@@ -62,18 +87,9 @@ def register_pipeline_tools(mcp):
             project_path: Path to the AACF project directory
         """
         try:
-            module = _load_project_module(project_path)
-            app = _get_app_from_module(module)
-
-            if app is None:
-                return "Error: No AACF app instance found in agents.py."
-
-            # Compile the pipeline
-            planner = app.compile()
-            analyzer = planner.analyzer  # Get the DependencyAnalyzer from the planner
-
-            if analyzer is None:
-                return "Error: Compilation failed - no dependency analyzer created."
+            _, analyzer, error = _compile_and_get_analyzer(project_path)
+            if error:
+                return error
 
             execution_order = analyzer.get_execution_order()
             parallel_groups = analyzer.get_parallel_groups()
@@ -108,29 +124,16 @@ def register_pipeline_tools(mcp):
             project_path: Path to the AACF project directory
         """
         try:
-            module = _load_project_module(project_path)
-            app = _get_app_from_module(module)
+            _, analyzer, error = _compile_and_get_analyzer(project_path)
+            if error:
+                return error
 
-            if app is None:
-                return "Error: No AACF app instance found in agents.py."
-
-            planner = app.compile()
-            analyzer = planner.analyzer
-
-            if analyzer is None:
-                return "Error: No dependency analyzer available."
-
-            # Get dependency info
             lines = ["Dependency Graph (DAG):", ""]
-
-            # Get the dependency graph
             dep_graph = analyzer.get_dependency_graph()
 
-            # Get all nodes and their dependencies
             for node_name in analyzer.get_execution_order():
                 deps = dep_graph.get(node_name, set())
                 dep_str = ", ".join(sorted(deps)) if deps else "(none)"
-
                 lines.append(f"  {node_name}:")
                 lines.append(f"    Depends on: {dep_str}")
                 lines.append("")
@@ -150,20 +153,11 @@ def register_pipeline_tools(mcp):
             project_path: Path to the AACF project directory
         """
         try:
-            module = _load_project_module(project_path)
-            app = _get_app_from_module(module)
-
-            if app is None:
-                return "Error: No AACF app instance found in agents.py."
-
-            planner = app.compile()
-            analyzer = planner.analyzer
-
-            if analyzer is None:
-                return "Error: No dependency analyzer available."
+            _, analyzer, error = _compile_and_get_analyzer(project_path)
+            if error:
+                return error
 
             order = analyzer.get_execution_order()
-
             lines = [f"Execution order ({len(order)} nodes):", ""]
             for i, name in enumerate(order, 1):
                 lines.append(f"  {i}. {name}")
@@ -183,20 +177,11 @@ def register_pipeline_tools(mcp):
             project_path: Path to the AACF project directory
         """
         try:
-            module = _load_project_module(project_path)
-            app = _get_app_from_module(module)
-
-            if app is None:
-                return "Error: No AACF app instance found in agents.py."
-
-            planner = app.compile()
-            analyzer = planner.analyzer
-
-            if analyzer is None:
-                return "Error: No dependency analyzer available."
+            _, analyzer, error = _compile_and_get_analyzer(project_path)
+            if error:
+                return error
 
             groups = analyzer.get_parallel_groups()
-
             lines = [f"Parallel groups ({len(groups)} groups):", ""]
             for i, group in enumerate(groups, 1):
                 lines.append(f"  Group {i} (parallel): {', '.join(group)}")
@@ -227,14 +212,12 @@ def register_pipeline_tools(mcp):
             return f"Invalid JSON inputs: {e}"
 
         try:
-            module = _load_project_module(project_path)
-            app = _get_app_from_module(module)
+            app, _, error = _compile_and_get_analyzer(project_path)
+            if error:
+                return error
 
-            if app is None:
-                return "Error: No AACF app instance found in agents.py."
-
-            # Run the pipeline
-            result = app.run_pipeline(**input_dict)
+            # Run the pipeline with inputs parameter
+            result = app.run_pipeline(inputs=input_dict)
 
             return f"Pipeline executed successfully!\n\nResult:\n{result}"
 

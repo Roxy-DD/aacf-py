@@ -18,10 +18,11 @@
 8. [API Reference](#api-reference)
 9. [Advanced Usage](#advanced-usage)
 10. [CLI Tools](#cli-tools)
-11. [i18n](#i18n)
-12. [Project Structure](#project-structure)
-13. [Design Decisions](#design-decisions)
-14. [Troubleshooting](#troubleshooting)
+11. [MCP Server](#mcp-server)
+12. [i18n](#i18n)
+13. [Project Structure](#project-structure)
+14. [Design Decisions](#design-decisions)
+15. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -173,7 +174,7 @@ This forces atomic thinking about each node's responsibility.
 ### Explicit Code Override
 
 ```python
-@app.node(who="Analyzer", what="Analyze text")
+@app.node("analyzer").who("Analyzer").what("Analyze text")
 def analyzer(text: str):
     from aacf.core import llm_call
     return llm_call(
@@ -541,7 +542,7 @@ HTTP request to OpenAI-compatible API. Exponential backoff retry (3 attempts). R
 ### Streaming
 
 ```python
-@app.node(who="Writer", what="Write a short story", stream=True)
+@app.node("writer").who("Writer").what("Write a short story").stream(True)
 def writer(topic: str):
     pass
 
@@ -552,7 +553,7 @@ for chunk in writer(topic="Cyberpunk city"):
 ### Structured JSON
 
 ```python
-@app.node(who="Extractor", what="Extract person info", format="json")
+@app.node("extractor").who("Data Extractor").what("Extract person info").format("json")
 def extractor(text: str):
     pass
 
@@ -563,7 +564,7 @@ data = json.loads(extractor(text="Li Lei, 28, engineer"))
 ### Smart Routing
 
 ```python
-@app.node(who="Router", what="Route requests", module=[writer, extractor])
+@app.node("router").who("Router").what("Route requests").module([writer, extractor])
 def router(user_req: str):
     pass
 
@@ -573,15 +574,15 @@ router(user_req="Write me a poem")  # auto-dispatches to writer
 ### Conditional Branching
 
 ```python
-@app.node(who="Branch A", what="Handle type A")
+@app.node("branch_a").who("Branch A").what("Handle type A")
 def branch_a(text: str):
     return f"A: {text}"
 
-@app.node(who="Branch B", what="Handle type B")
+@app.node("branch_b").who("Branch B").what("Handle type B")
 def branch_b(text: str):
     return f"B: {text}"
 
-@app.node(who="Router", what="Route by type", branches={"a": branch_a, "b": branch_b})
+@app.node("router").who("Router").what("Route by type")
 def router(text: str):
     return "a"  # Return branch key
 ```
@@ -598,11 +599,7 @@ result = writer(
 ### Custom Output Format
 
 ```python
-@app.node(
-    who="Summarizer",
-    what="Summarize text",
-    out="Use bullet points, max 5 items, each under 20 words"
-)
+@app.node("summarizer").who("Summarizer").what("Summarize text").out("Use bullet points, max 5 items, each under 20 words")
 def summarizer(text: str):
     pass
 ```
@@ -612,11 +609,11 @@ def summarizer(text: str):
 ```python
 app = AACF(__name__)
 
-@app.node(who="A", what="First step")
+@app.node("step_a").who("A").what("First step")
 def step_a(text: str):
     return f"processed_{text}"
 
-@app.node(who="B", what="Second step")
+@app.node("step_b").who("B").what("Second step")
 def step_b(step_a: str):
     return f"final_{step_a}"
 
@@ -636,6 +633,75 @@ results = app.run_pipeline(inputs={"step_a": {"text": "input"}})
 | `aacf sync <path>` | Inject docstrings into source |
 | `aacf watch <path>` | Watch and auto-inject |
 | `aacf doc <module>` | API doc server |
+
+---
+
+## MCP Server
+
+AACF provides an MCP (Model Context Protocol) server for AI-assisted development. AI clients like Claude Desktop can use AACF tools to help build and manage projects.
+
+### Installation
+
+```bash
+pip install aacf[mcp]
+```
+
+### Usage
+
+```bash
+# Start MCP server (stdio mode)
+aacf-mcp
+
+# Or run as Python module
+python -m aacf_mcp
+```
+
+### Client Configuration
+
+Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "aacf": {
+      "command": "aacf-mcp"
+    }
+  }
+}
+```
+
+### Available Tools
+
+| Category | Tool | Description |
+|----------|------|-------------|
+| **Project** | `init_project` | Initialize new AACF project |
+| | `read_project` | Read project structure/files |
+| | `validate_project` | Validate project configuration |
+| **Nodes** | `create_node` | Create new node in agents.py |
+| | `list_nodes` | List all nodes in project |
+| | `get_node_info` | Get detailed node info |
+| | `configure_node` | Modify node configuration |
+| **Pipeline** | `compile_pipeline` | Compile and analyze dependencies |
+| | `get_dependency_graph` | Get DAG dependency graph |
+| | `get_execution_order` | Get topological execution order |
+| | `get_parallel_groups` | Get parallel execution groups |
+| | `run_pipeline` | Execute pipeline with inputs |
+
+### Architecture
+
+The MCP server uses `FastMCP` (high-level Python SDK) with stdio transport. All tools operate by reading/writing Python files in AACF projects, without modifying the core AACF runtime. This ensures clean separation between the AI assistance layer and the framework itself.
+
+Source code in `aacf_mcp/`:
+
+```
+aacf_mcp/
+  __init__.py        # Exports: create_server
+  server.py          # FastMCP server + main entry
+  tools/
+    nodes.py         # Node management tools (4)
+    pipeline.py      # Pipeline analysis tools (5)
+    project.py       # Project management tools (3)
+```
 
 ---
 
@@ -701,6 +767,18 @@ aacf/
   cli.py             # CLI commands
   _messages.py       # Bilingual prompt templates
   py.typed           # PEP 561 type marker
+```
+
+### MCP (Optional)
+
+```
+aacf_mcp/
+  __init__.py        # Exports: create_server
+  server.py          # FastMCP server with stdio transport
+  tools/
+    nodes.py         # Node management tools
+    pipeline.py      # Pipeline analysis tools
+    project.py       # Project management tools
 ```
 
 ### Tests

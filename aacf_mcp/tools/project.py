@@ -58,7 +58,7 @@ app = AACF(
 )
 
 
-@app.node("hello")
+@app.node("hello").who("助手").what("向用户打招呼")
 def hello(name: str):
     pass
 '''

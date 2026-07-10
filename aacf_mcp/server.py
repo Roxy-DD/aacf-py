@@ -3,9 +3,9 @@
 """
 AACF MCP Server -- Model Context Protocol server for AACF.
 
-Exposes AACF core operations as MCP Tools so AI clients
-(Claude Desktop, VS Code Copilot, etc.) can assist users
-in building and managing AACF projects.
+Exposes AACF core operations as MCP Tools, Resources, and Prompts
+so AI clients (Claude Desktop, VS Code Copilot, Qoder, etc.) can
+assist users in building and managing AACF projects.
 
 Usage:
     aacf-mcp                  # stdio mode (for AI clients)
@@ -21,11 +21,24 @@ def create_server() -> FastMCP:
     创建并配置 AACF MCP Server 实例。
 
     Returns:
-        Configured FastMCP server with all tools registered.
+        Configured FastMCP server with all tools, resources, and prompts registered.
     """
-    mcp = FastMCP("AACF Server")
+    mcp = FastMCP(
+        "AACF Server",
+        instructions=(
+            "AACF (Agentic AI Compiler Framework) MCP Server.\n"
+            "Helps users build AI agent pipelines with the chainable decorator API.\n\n"
+            "Key concepts:\n"
+            "- Nodes: AI agent functions decorated with @app.node()\n"
+            "- Chain API: .who().what().where().cache().retry() etc.\n"
+            "- Dependencies: param name matching upstream node name\n"
+            "- Pipeline: auto-resolved DAG from node dependencies\n\n"
+            "Use Resources to read project data, Tools to modify/execute, "
+            "and Prompts for guided workflows."
+        ),
+    )
 
-    # Register all tool modules
+    # Register tool modules
     from aacf_mcp.tools.nodes import register_node_tools
     from aacf_mcp.tools.pipeline import register_pipeline_tools
     from aacf_mcp.tools.project import register_project_tools
@@ -33,6 +46,16 @@ def create_server() -> FastMCP:
     register_node_tools(mcp)
     register_pipeline_tools(mcp)
     register_project_tools(mcp)
+
+    # Register resources
+    from aacf_mcp.tools.resources import register_resources
+
+    register_resources(mcp)
+
+    # Register prompts
+    from aacf_mcp.tools.prompts import register_prompts
+
+    register_prompts(mcp)
 
     return mcp
 

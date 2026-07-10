@@ -628,7 +628,8 @@ results = app.run_pipeline(inputs={"step_a": {"text": "input"}})
 
 | Command | Description |
 |---------|-------------|
-| `aacf init <name>` | Initialize project |
+| `aacf init <name>` | Initialize project (creates venv + installs aacf) |
+| `aacf init <name> --no-venv` | Initialize project (skip venv, instant) |
 | `aacf run <script>` | Run script |
 | `aacf sync <path>` | Inject docstrings into source |
 | `aacf watch <path>` | Watch and auto-inject |
@@ -658,16 +659,33 @@ python -m aacf_mcp
 
 ### Client Configuration
 
+Qoder (`.qoder/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "aacf": {
+      "command": "python",
+      "args": ["-m", "aacf_mcp"]
+    }
+  }
+}
+```
+
 Claude Desktop (`claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "aacf": {
-      "command": "aacf-mcp"
+      "command": "python",
+      "args": ["-m", "aacf_mcp"]
     }
   }
 }
+```
+
+> Use `python -m aacf_mcp` instead of `aacf-mcp` for better compatibility across environments.
 ```
 
 ### Available Tools
@@ -862,6 +880,8 @@ pip install pyvis>=0.3.2
 | `CircularDependencyError` | Cycle in node graph | Break the dependency cycle |
 | `PipelineError` | Node failed, downstream blocked | Check failed node's error info |
 | `NodeExecutionError` | All retries exhausted | Increase `max_retries` or fix root cause |
+| MCP server not starting | `aacf-mcp` not in PATH | Use `python -m aacf_mcp` in mcp.json config |
+| `aacf init` slow | venv creation + pip install | Use `--no-venv` flag for instant init |
 
 ---
 

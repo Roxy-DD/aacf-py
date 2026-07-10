@@ -211,6 +211,7 @@ def inject_docstrings_for_file(filepath: str) -> bool:
 @app.command()
 def init(
     project_name: str = typer.Argument(..., help="The name of your new AACF project / 新项目名称"),
+    no_venv: bool = typer.Option(False, "--no-venv", help="Skip virtual environment creation / 跳过虚拟环境创建"),
 ):
     """Initialize a new AACF project with the recommended directory structure.
     初始化一个新的 AACF 项目，包含推荐的目录结构。"""
@@ -226,7 +227,8 @@ def init(
         raise typer.Exit(code=1)
 
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
-        progress.add_task(description="Creating project structure / 创建项目结构...", total=None)
+        # Step 1: Create project files / 创建项目文件
+        task = progress.add_task(description="Creating project structure / 创建项目结构...", total=None)
         # 创建项目目录 / Create project directory
         project_dir.mkdir(parents=True)
 
@@ -234,8 +236,32 @@ def init(
         agents_py = project_dir / "agents.py"
         agents_py.write_text(
             "# SPDX-License-Identifier: GPL-3.0\n"
-            '"""AI agent node definitions / AI 智能体节点定义。"""\n\n'
-            "from aacf import AACF, LLMConfig\n\n\n"
+            '"""AI agent node definitions / AI 智能体节点定义。\n'
+            "\n"
+            "Use the chainable API to configure nodes:\n"
+            "使用链式 API 配置节点：\n"
+            "\n"
+            '    @app.node("name").who("role").what("task")\n'
+            "    def my_node(param: str):\n"
+            "        pass\n"
+            "\n"
+            "Available chain methods / 可用链式方法：\n"
+            "    .who(role)        - Agent role / 智能体角色\n"
+            "    .what(task)       - Core task / 核心任务\n"
+            "    .where(context)   - Business context / 业务环境\n"
+            "    .why(reason)      - Execution intent / 执行意图\n"
+            "    .how(method)      - Operation method / 操作方法\n"
+            '    .stream(True)     - Enable streaming / 启用流式输出\n'
+            '    .format("json")   - JSON output / JSON 输出\n'
+            "    .out(requirement) - Output format / 输出格式要求\n"
+            "    .cache(ttl=300)   - Enable cache / 启用缓存\n"
+            "    .retry(max_attempts=3, delay=1.0) - Retry config / 重试配置\n"
+            "    .timeout(seconds) - Timeout config / 超时配置\n"
+            '"""\n'
+            "\n"
+            "from aacf import AACF, LLMConfig\n"
+            "\n"
+            "# ── Initialize App / 初始化应用 ──────────────────────────────────────\n"
             "app = AACF(\n"
             "    __name__,\n"
             "    config=LLMConfig(\n"
@@ -243,9 +269,22 @@ def init(
             '        url="http://127.0.0.1:8080/v1/chat/completions",\n'
             '        language="zh",  # "zh" (中文) or "en" (English)\n'
             "    ),\n"
-            ")\n\n\n"
-            '@app.node("hello").who("助手").what("向用户打招呼")\n'
-            "def hello(name: str):\n"
+            ")\n"
+            "\n"
+            "\n"
+            "# ── Node Definitions / 节点定义 ──────────────────────────────────────\n"
+            "\n"
+            "\n"
+            '@app.node("greeting").who("友好助手").what("向用户打招呼并回答问题")\n'
+            "def greeting(name: str):\n"
+            '    """A simple greeting node. / 简单的问候节点。"""\n'
+            "    pass\n"
+            "\n"
+            "\n"
+            '@app.node("summary").who("摘要专家").what("根据输入内容生成简洁摘要").cache(ttl=300)\n'
+            "def summary(greeting: str):\n"
+            '    """A summary node that depends on greeting (param name matches upstream node).\n'
+            "    摘要节点，依赖 greeting（参数名匹配上游节点名）。\"\"\"\n"
             "    pass\n",
             encoding="utf-8",
         )
@@ -254,10 +293,27 @@ def init(
         main_py = project_dir / "main.py"
         main_py.write_text(
             "# SPDX-License-Identifier: GPL-3.0\n"
-            '"""Application entry point / 应用入口文件。"""\n\n'
-            "from agents import hello\n\n\n"
+            '"""Application entry point / 应用入口文件。\n'
+            "\n"
+            "Demonstrates:\n"
+            "  1. Calling individual nodes / 调用单个节点\n"
+            "  2. Pipeline execution with dependency analysis / 带依赖分析的管道执行\n"
+            '"""\n'
+            "\n"
+            "from agents import app, greeting, summary\n"
+            "\n"
+            "\n"
             'if __name__ == "__main__":\n'
-            '    print(hello(name="World"))\n',
+            "    # 1. Call a single node / 调用单个节点\n"
+            '    print(\"=== Node Call / 节点调用 ===\")\n'
+            '    print(greeting(name=\"World\"))\n'
+            "    print()\n"
+            "\n"
+            "    # 2. Run pipeline (auto-resolves dependencies) / 运行管道（自动解析依赖）\n"
+            '    print(\"=== Pipeline / 管道执行 ===\")\n'
+            '    results = app.run_pipeline(inputs={\"greeting\": {\"name\": \"AACF\"}})\n'
+            "    for node_name, result in results.items():\n"
+            '        print(f\"{node_name}: {result}\")\n',
             encoding="utf-8",
         )
 
@@ -266,46 +322,125 @@ def init(
         readme_md.write_text(
             f"# {project_name}\n\n"
             "An AACF-powered AI agent project.\n\n"
-            "## Quick Start\n\n"
+            "## Project Structure / 项目结构\n\n"
+            "```\n"
+            f"{project_name}/\n"
+            "├── agents.py    # Node definitions (chainable API) / 节点定义（链式 API）\n"
+            "├── main.py      # Entry point / 入口文件\n"
+            "├── README.md    # This file / 本文件\n"
+            "└── .gitignore\n"
+            "```\n\n"
+            "## Quick Start / 快速开始\n\n"
             "```bash\n"
-            "# Activate virtual environment\n"
-            "source .venv/bin/activate  # Linux/macOS\n"
-            ".venv\\Scripts\\activate   # Windows\n\n"
-            "# Run the project\n"
+            "# Install dependencies / 安装依赖\n"
+            "pip install aacf\n\n"
+            "# Run the project / 运行项目\n"
             "python main.py\n"
-            "```\n",
+            "```\n\n"
+            "## Node Configuration / 节点配置\n\n"
+            "Use the chainable API to configure nodes in `agents.py`:\n"
+            "在 `agents.py` 中使用链式 API 配置节点：\n\n"
+            "```python\n"
+            '@app.node("name")           # Node name / 节点名称\n'
+            '    .who("role")            # Agent role / 智能体角色\n'
+            '    .what("task")           # Core task / 核心任务\n'
+            '    .where("context")       # Business context / 业务环境\n'
+            "    .stream(True)           # Streaming output / 流式输出\n"
+            '    .format("json")         # JSON output / JSON 输出\n'
+            "    .cache(ttl=300)         # Cache 5 min / 缓存 5 分钟\n"
+            "    .retry(max_attempts=3)  # Retry config / 重试配置\n"
+            "def my_node(param: str):\n"
+            "    pass\n"
+            "```\n\n"
+            "## Pipeline / 管道执行\n\n"
+            "AACF automatically analyzes dependencies between nodes and builds a DAG.\n"
+            "AACF 自动分析节点间的依赖关系并构建 DAG。\n\n"
+            "```python\n"
+            "# Run pipeline with inputs / 运行管道并传入输入\n"
+            'results = app.run_pipeline(inputs={"node_name": {"param": "value"}})\n'
+            "\n"
+            "# Query execution plan / 查询执行计划\n"
+            "app.get_execution_order()   # Topological order / 拓扑顺序\n"
+            "app.get_parallel_groups()   # Parallel groups / 并行分组\n"
+            "app.get_dependency_graph()  # Dependency graph / 依赖图\n"
+            "```\n\n"
+            "## Dependency Convention / 依赖约定\n\n"
+            "Parameter names matching upstream node names create automatic dependencies:\n"
+            "参数名匹配上游节点名时，自动建立依赖关系：\n\n"
+            "```python\n"
+            '@app.node("extractor").who("提取器").what("提取信息")\n'
+            "def extractor(text: str):\n"
+            "    pass\n"
+            "\n"
+            '@app.node("summarizer").who("摘要器").what("生成摘要")\n'
+            'def summarizer(extractor: str):  # param "extractor" -> depends on node "extractor"\n'
+            '    pass                          # 参数名 "extractor" 依赖节点 "extractor"\n'
+            "```\n\n"
+            "## License / 许可证\n\n"
+            "SPDX-License-Identifier: GPL-3.0\n",
             encoding="utf-8",
         )
 
-        # 初始化虚拟环境并安装 aacf / Initialize venv and install aacf
-        venv_created = False
-        try:
-            subprocess.check_call(
-                [sys.executable, "-m", "venv", ".venv"],
-                cwd=str(project_dir),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            venv_created = True
-        except (subprocess.CalledProcessError, Exception):
-            pass  # 虚拟环境创建失败不影响项目初始化 / venv failure is non-fatal
+        # 创建 .qoder/mcp.json — MCP 服务配置 / Create .qoder/mcp.json — MCP server config
+        qoder_dir = project_dir / ".qoder"
+        qoder_dir.mkdir(exist_ok=True)
+        mcp_json = qoder_dir / "mcp.json"
+        mcp_json.write_text(
+            '{\n'
+            '  "mcpServers": {\n'
+            '    "aacf": {\n'
+            '      "command": "python",\n'
+            '      "args": ["-m", "aacf_mcp"]\n'
+            '    }\n'
+            '  }\n'
+            '}\n',
+            encoding="utf-8",
+        )
 
-        if venv_created:
-            # 在 venv 中安装 aacf / Install aacf in the venv
-            venv_python = project_dir / ".venv" / "Scripts" / "python.exe"
-            if not venv_python.exists():
-                venv_python = project_dir / ".venv" / "bin" / "python"
+        progress.update(task, description="Project structure created / 项目结构已创建")
+
+        # Step 2: Create virtual environment / 创建虚拟环境
+        venv_created = False
+        if not no_venv:
+            task = progress.add_task(description="Creating virtual environment / 创建虚拟环境...", total=None)
             try:
                 subprocess.check_call(
-                    [str(venv_python), "-m", "pip", "install", "aacf", "-q"],
+                    [sys.executable, "-m", "venv", ".venv"],
+                    cwd=str(project_dir),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    timeout=30,
                 )
+                venv_created = True
+                progress.update(task, description="Virtual environment created / 虚拟环境已创建")
+            except subprocess.TimeoutExpired:
+                progress.update(task, description="[yellow]Virtual environment creation timed out / 虚拟环境创建超时[/]")
             except (subprocess.CalledProcessError, Exception):
-                pass  # 安装失败时用户可手动安装 / User can install manually if this fails
+                progress.update(task, description="[yellow]Virtual environment creation failed / 虚拟环境创建失败[/]")
+
+            # Step 3: Install aacf / 安装 aacf
+            if venv_created:
+                task = progress.add_task(description="Installing aacf / 安装 aacf...", total=None)
+                venv_python = project_dir / ".venv" / "Scripts" / "python.exe"
+                if not venv_python.exists():
+                    venv_python = project_dir / ".venv" / "bin" / "python"
+                try:
+                    subprocess.check_call(
+                        [str(venv_python), "-m", "pip", "install", "aacf", "-q"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=120,
+                    )
+                    progress.update(task, description="aacf installed / aacf 已安装")
+                except subprocess.TimeoutExpired:
+                    progress.update(task, description="[yellow]pip install timed out / pip 安装超时[/]")
+                except (subprocess.CalledProcessError, Exception):
+                    progress.update(task, description="[yellow]pip install failed / pip 安装失败[/]")
 
     console.print("[bold green]✔[/] Project structure created / 项目结构已创建。")
-    if venv_created:
+    if no_venv:
+        console.print("[dim]Skipped virtual environment (--no-venv) / 已跳过虚拟环境创建[/]")
+    elif venv_created:
         console.print("[bold green]✔[/] Virtual environment created and aacf installed / 虚拟环境已创建并安装 aacf。")
     else:
         console.print(

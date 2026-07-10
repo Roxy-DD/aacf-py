@@ -12,6 +12,8 @@ import re
 from pathlib import Path
 from typing import Optional
 
+from mcp.types import ToolAnnotations
+
 
 def _find_agents_file(project_path: str) -> Path:
     """
@@ -95,7 +97,14 @@ def _parse_nodes_from_file(filepath: Path) -> list[dict]:
 def register_node_tools(mcp):
     """Register all node management tools with the MCP server."""
 
-    @mcp.tool()
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Create Node",
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=False,
+        ),
+    )
     def create_node(
         project_path: str,
         name: str,
@@ -109,7 +118,7 @@ def register_node_tools(mcp):
         cache_enabled: bool = False,
         cache_ttl: int = 0,
         max_retries: int = 3,
-    ) -> str:
+    ) -> dict:
         """
         Create a new AACF node in the project's agents.py file.
         在项目的 agents.py 文件中创建一个新的 AACF 节点。
@@ -171,14 +180,24 @@ def {name}(text: str):
         with open(agents_file, "a", encoding="utf-8") as f:
             f.write(node_code)
 
-        return (
-            f"Node '{name}' created successfully in {agents_file.name}.\n"
-            f"Decorator: @app.node({dec_str}){chain_str}\n"
-            f"Function: def {name}(text: str): pass"
-        )
+        result = {
+            "status": "created",
+            "node_name": name,
+            "file": str(agents_file),
+            "decorator": f"@app.node({dec_str}){chain_str}",
+            "function": f"def {name}(text: str): pass",
+        }
+        return result
 
-    @mcp.tool()
-    def list_nodes(project_path: str) -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="List Nodes",
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def list_nodes(project_path: str) -> dict:
         """
         List all AACF nodes defined in the project.
         列出项目中定义的所有 AACF 节点。
@@ -190,25 +209,31 @@ def {name}(text: str):
         nodes = _parse_nodes_from_file(agents_file)
 
         if not nodes:
-            return f"No @app.node decorated functions found in {agents_file.name}."
+            return {"file": str(agents_file), "count": 0, "nodes": []}
 
-        lines = [f"Found {len(nodes)} node(s) in {agents_file.name}:\n"]
-        for i, n in enumerate(nodes, 1):
-            lines.append(f"  {i}. {n['name']} (line {n['lineno']})")
-            lines.append(f"     Decorator: {n['decorator']}")
+        node_list = []
+        for n in nodes:
             params = ", ".join(f"{p['name']}: {p['type']}" if p["type"] else p["name"] for p in n["params"])
-            lines.append(f"     Params: {params or '(none)'}")
-            mode = "LLM auto-call" if not n["has_body_code"] else "Explicit code override"
-            lines.append(f"     Mode: {mode}")
-            if n["docstring"]:
-                first_line = n["docstring"].split("\n")[0].strip()
-                lines.append(f"     Doc: {first_line}")
-            lines.append("")
+            node_list.append({
+                "name": n["name"],
+                "line": n["lineno"],
+                "decorator": n["decorator"],
+                "params": params or "(none)",
+                "mode": "LLM auto-call" if not n["has_body_code"] else "Explicit code override",
+                "docstring": n["docstring"].split("\n")[0].strip() if n["docstring"] else "",
+            })
 
-        return "\n".join(lines)
+        return {"file": str(agents_file), "count": len(node_list), "nodes": node_list}
 
-    @mcp.tool()
-    def get_node_info(project_path: str, node_name: str) -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Get Node Info",
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def get_node_info(project_path: str, node_name: str) -> dict:
         """
         Get detailed information about a specific AACF node.
         获取特定 AACF 节点的详细信息。
@@ -227,30 +252,31 @@ def {name}(text: str):
                 break
 
         if target is None:
-            available = ", ".join(n["name"] for n in nodes)
-            return f"Node '{node_name}' not found in {agents_file.name}.\nAvailable nodes: {available or '(none)'}"
+            available = [n["name"] for n in nodes]
+            return {"error": f"Node '{node_name}' not found", "available_nodes": available}
 
-        lines = [
-            f"Node: {target['name']}",
-            f"File: {agents_file.name} (line {target['lineno']})",
-            f"Decorator: {target['decorator']}",
-            f"Mode: {'LLM auto-call (pass)' if not target['has_body_code'] else 'Explicit code override'}",
-            "",
-            "Parameters:",
-        ]
+        params = []
         for p in target["params"]:
-            type_str = f": {p['type']}" if p["type"] else ""
-            lines.append(f"  - {p['name']}{type_str}")
+            params.append({"name": p["name"], "type": p["type"] or None})
 
-        if target["docstring"]:
-            lines.append("")
-            lines.append("Docstring:")
-            for line in target["docstring"].split("\n"):
-                lines.append(f"  {line}")
+        return {
+            "name": target["name"],
+            "file": str(agents_file),
+            "line": target["lineno"],
+            "decorator": target["decorator"],
+            "mode": "LLM auto-call (pass)" if not target["has_body_code"] else "Explicit code override",
+            "params": params,
+            "docstring": target["docstring"] or None,
+        }
 
-        return "\n".join(lines)
-
-    @mcp.tool()
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Configure Node",
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=False,
+        ),
+    )
     def configure_node(
         project_path: str,
         node_name: str,
@@ -261,7 +287,7 @@ def {name}(text: str):
         timeout: Optional[int] = None,
         stream: Optional[bool] = None,
         format: Optional[str] = None,
-    ) -> str:
+    ) -> dict:
         """
         Modify configuration of an existing AACF node.
         修改现有 AACF 节点的配置。
@@ -294,12 +320,11 @@ def {name}(text: str):
             # Try simpler pattern to check if node exists
             pattern2 = rf"def\s+{re.escape(node_name)}\s*\("
             if not re.search(pattern2, source):
-                return f"Node '{node_name}' not found in {agents_file.name}."
-            return (
-                f"Node '{node_name}' found but its @app.node decorator "
-                f"could not be parsed for automatic reconfiguration.\n"
-                f"Please manually edit the decorator in {agents_file.name}."
-            )
+                return {"error": f"Node '{node_name}' not found in {agents_file.name}"}
+            return {
+                "error": f"Node '{node_name}' found but decorator could not be parsed for automatic reconfiguration.",
+                "hint": f"Please manually edit the decorator in {agents_file.name}.",
+            }
 
         # Extract the full decorator line (group 1 is the decorator only)
         full_decorator = dec_match.group(1)
@@ -308,7 +333,7 @@ def {name}(text: str):
         # Extract the base @app.node("name") part
         base_match = re.match(r"@app\.node\(([^)]*)\)", full_decorator)
         if not base_match:
-            return f"Could not parse base decorator for node '{node_name}'."
+            return {"error": f"Could not parse base decorator for node '{node_name}'."}
 
         node_name_arg = base_match.group(1).strip()
 
@@ -366,4 +391,10 @@ def {name}(text: str):
         if format is not None:
             changes.append(f'format="{format}"')
 
-        return f"Node '{node_name}' configuration updated in {agents_file.name}.\nChanges: {', '.join(changes)}"
+        return {
+            "status": "updated",
+            "node_name": node_name,
+            "file": str(agents_file),
+            "new_decorator": new_decorator,
+            "changes": changes,
+        }

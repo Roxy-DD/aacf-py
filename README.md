@@ -180,11 +180,12 @@ def analyzer(text: str):
 ## CLI
 
 ```bash
-aacf init my_project        # Initialize project
-aacf run main.py            # Run script
-aacf sync .                 # Inject docstrings into source
-aacf watch .                # Watch and auto-inject
-aacf doc aacf --port 8080   # API doc server
+aacf init my_project            # Initialize project (creates venv + installs aacf)
+aacf init my_project --no-venv  # Initialize project (skip venv, instant)
+aacf run main.py                # Run script
+aacf sync .                     # Inject docstrings into source
+aacf watch .                    # Watch and auto-inject
+aacf doc aacf --port 8080       # API doc server
 ```
 
 ---
@@ -201,16 +202,35 @@ pip install aacf[mcp]
 aacf-mcp
 ```
 
-**Claude Desktop Configuration** (`claude_desktop_config.json`):
+### Client Configuration
+
+Qoder (`.qoder/mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "aacf": {
-      "command": "aacf-mcp"
+      "command": "python",
+      "args": ["-m", "aacf_mcp"]
     }
   }
 }
+```
+
+Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "aacf": {
+      "command": "python",
+      "args": ["-m", "aacf_mcp"]
+    }
+  }
+}
+```
+
+> Use `python -m aacf_mcp` instead of `aacf-mcp` for better compatibility across environments.
 ```
 
 **Available MCP Tools:**

@@ -17,6 +17,8 @@ A Python framework for building LLM-driven agent pipelines through decorators, d
 >
 > *You think you're thinking freely. Actually you're thinking freely within the correct range I designed.*
 > *This is not restriction. This is the most elegant liberation.*
+>
+> *Notice: this documentation is itself a bootstrapping demonstration of the philosophy above. Your reading experience — the questions it raised, the thoughts it triggered — was guided by its structure. This is a meta-cognitive trap by design: you just experienced constrained freedom while reading about constrained freedom.*
 
 **Weak models do powerful things through clear rules. Strong models do rigorous things through constrained freedom.**
 

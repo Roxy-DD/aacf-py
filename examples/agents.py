@@ -30,9 +30,9 @@ app = AACF(
 @app.node("title_generator").who("标题创意师").what("为给定主题生成 3 个富有吸引力的文章标题").stream(True)
 def title_generator(topic: str):
     """
-    【AACF 智能节点 / Smart Node】: 标题创意师
+     【AACF 智能节点 / Smart Node】: 标题创意师
     🎯 核心任务 / Core Task: 为给定主题生成 3 个富有吸引力的文章标题
-    📍 执行环境 / Environment:
+     执行环境 / Environment:
     """
     pass
 
@@ -40,9 +40,9 @@ def title_generator(topic: str):
 @app.node("article_writer").who("专栏作家").what("根据给定标题撰写一篇 200 字左右的短文").where("科技媒体专栏")
 def article_writer(title: str):
     """
-    【AACF 智能节点 / Smart Node】: 专栏作家
+     【AACF 智能节点 / Smart Node】: 专栏作家
     🎯 核心任务 / Core Task: 根据给定标题撰写一篇 200 字左右的短文
-    📍 执行环境 / Environment: 科技媒体专栏
+     执行环境 / Environment: 科技媒体专栏
     """
     pass
 
@@ -52,9 +52,9 @@ def article_writer(title: str):
 )
 def keyword_extractor(text: str):
     """
-    【AACF 智能节点 / Smart Node】: 内容分析师
+     【AACF 智能节点 / Smart Node】: 内容分析师
     🎯 核心任务 / Core Task: 从文本中提取关键词并评估其所属领域
-    📍 执行环境 / Environment:
+     执行环境 / Environment:
     """
     pass
 
@@ -92,9 +92,9 @@ def text_analyzer(text: str):
 )
 def content_router(user_req: str):
     """
-    【AACF 智能节点 / Smart Node】: 内容总监
+     【AACF 智能节点 / Smart Node】: 内容总监
     🎯 核心任务 / Core Task: 分析用户需求，分派给最合适的专业节点处理
-    📍 执行环境 / Environment:
+     执行环境 / Environment:
     """
     pass
 
@@ -106,9 +106,9 @@ def content_router(user_req: str):
 @app.node("extractor").who("文本提取器").what("从原始文本中提取关键信息").cache(ttl=300).retry(max_attempts=2)
 def extractor(raw_text: str):
     """
-    【AACF 智能节点 / Smart Node】: 文本提取器
+     【AACF 智能节点 / Smart Node】: 文本提取器
     🎯 核心任务 / Core Task: 从原始文本中提取关键信息
-    📍 执行环境 / Environment:
+     执行环境 / Environment:
     """
     pass
 
@@ -116,9 +116,9 @@ def extractor(raw_text: str):
 @app.node("summarizer").who("摘要生成器").what("根据提取的信息生成摘要").cache()
 def summarizer(extractor: str):
     """
-    【AACF 智能节点 / Smart Node】: 摘要生成器
+     【AACF 智能节点 / Smart Node】: 摘要生成器
     🎯 核心任务 / Core Task: 根据提取的信息生成摘要
-    📍 执行环境 / Environment:
+     执行环境 / Environment:
     """
     # 参数名 extractor 匹配上游节点名，自动建立依赖关系
     # Parameter name 'extractor' matches upstream node name, automatically establishes dependency

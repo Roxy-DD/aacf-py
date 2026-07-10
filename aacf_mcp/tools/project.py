@@ -11,12 +11,21 @@ import subprocess
 import sys
 from pathlib import Path
 
+from mcp.types import ToolAnnotations
+
 
 def register_project_tools(mcp):
     """Register all project management tools with the MCP server."""
 
-    @mcp.tool()
-    def init_project(project_name: str, path: str = "", create_venv: bool = False) -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Initialize Project",
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=True,
+        ),
+    )
+    def init_project(project_name: str, path: str = "", create_venv: bool = False) -> dict:
         """
         Initialize a new AACF project with standard structure.
         初始化具有标准结构的新 AACF 项目。
@@ -36,7 +45,7 @@ def register_project_tools(mcp):
         project_dir = parent / project_name
 
         if project_dir.exists():
-            return f"Error: Directory '{project_name}' already exists at {parent}."
+            return {"error": f"Directory '{project_name}' already exists at {parent}."}
 
         # Create project directory
         project_dir.mkdir(parents=True)
@@ -228,6 +237,22 @@ wheels/
 """
         (project_dir / ".gitignore").write_text(gitignore_content, encoding="utf-8")
 
+        # Create .qoder/mcp.json — MCP server config for Qoder
+        qoder_dir = project_dir / ".qoder"
+        qoder_dir.mkdir(exist_ok=True)
+        mcp_json = qoder_dir / "mcp.json"
+        mcp_json.write_text(
+            '{\n'
+            '  "mcpServers": {\n'
+            '    "aacf": {\n'
+            '      "command": "python",\n'
+            '      "args": ["-m", "aacf_mcp"]\n'
+            '    }\n'
+            '  }\n'
+            '}\n',
+            encoding="utf-8",
+        )
+
         # Create virtual environment and install aacf (optional)
         venv_created = False
         if create_venv:
@@ -251,7 +276,7 @@ wheels/
                     cwd=project_dir,
                     check=True,
                     capture_output=True,
-                    timeout=60,  # 60 second timeout for pip install
+                    timeout=120,  # 120 second timeout for pip install
                 )
                 venv_created = True
             except subprocess.TimeoutExpired:
@@ -259,43 +284,46 @@ wheels/
             except Exception:
                 pass  # venv creation is optional
 
-        result_lines = [
-            f"Project '{project_name}' created successfully at {project_dir}!",
-            "",
-            "Created files:",
-            "  - agents.py (node definitions)",
-            "  - main.py (entry point)",
-            "  - README.md (documentation)",
-            "  - .gitignore",
-        ]
+        result = {
+            "status": "created",
+            "project_name": project_name,
+            "project_path": str(project_dir),
+            "files_created": [
+                "agents.py",
+                "main.py",
+                "README.md",
+                ".gitignore",
+                ".qoder/mcp.json",
+            ],
+        }
 
         if venv_created:
-            result_lines.append("  - .venv/ (virtual environment with aacf installed)")
+            result["venv"] = "created"
+            result["files_created"].append(".venv/")
         else:
-            result_lines.append("  - .venv/ creation failed (please create manually with: python -m venv .venv)")
+            result["venv"] = "skipped"
 
-        result_lines.extend(
-            [
-                "",
-                "Next steps:",
-                f"  cd {project_name}",
-            ]
-        )
-
+        result["next_steps"] = [
+            f"cd {project_name}",
+        ]
         if venv_created:
             if sys.platform == "win32":
-                result_lines.append("  .venv\\Scripts\\activate   # Windows")
+                result["next_steps"].append(".venv\\Scripts\\activate   # Windows")
             else:
-                result_lines.append("  source .venv/bin/activate  # Linux/macOS")
-            result_lines.append("  python main.py")
-        else:
-            result_lines.append("  # Activate your virtual environment first")
-            result_lines.append("  python main.py")
+                result["next_steps"].append("source .venv/bin/activate  # Linux/macOS")
+        result["next_steps"].append("python main.py")
 
-        return "\n".join(result_lines)
+        return result
 
-    @mcp.tool()
-    def read_project(project_path: str, file_name: str = "") -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Read Project",
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def read_project(project_path: str, file_name: str = "") -> dict:
         """
         Read project structure or a specific file's content.
         读取项目结构或特定文件的内容。
@@ -307,48 +335,46 @@ wheels/
         root = Path(project_path).resolve()
 
         if not root.exists():
-            return f"Error: Project directory '{project_path}' does not exist."
+            return {"error": f"Project directory '{project_path}' does not exist."}
 
         if file_name:
             # Read specific file
             file_path = root / file_name
             if not file_path.exists():
-                return f"Error: File '{file_name}' not found in {project_path}."
+                return {"error": f"File '{file_name}' not found in {project_path}."}
 
             try:
                 content = file_path.read_text(encoding="utf-8")
-                return f"=== {file_name} ===\n\n{content}"
+                return {"file": file_name, "path": str(file_path), "content": content}
             except Exception as e:
-                return f"Error reading file: {e}"
+                return {"error": f"Error reading file: {e}"}
 
         # List project structure
-        lines = [f"Project structure at {root}:", ""]
-
-        # Get all files (excluding .venv and __pycache__)
         exclude_dirs = {".venv", "venv", "__pycache__", ".git", "node_modules"}
+        files = []
 
         for item in sorted(root.rglob("*")):
-            # Skip excluded directories
             if any(excluded in item.parts for excluded in exclude_dirs):
                 continue
-
-            # Skip hidden files except .gitignore
             if item.name.startswith(".") and item.name != ".gitignore":
                 continue
-
-            # Calculate relative path
             rel_path = item.relative_to(root)
-
             if item.is_dir():
-                lines.append(f"  {rel_path}/")
+                files.append({"path": str(rel_path) + "/", "type": "directory"})
             else:
-                size = item.stat().st_size
-                lines.append(f"  {rel_path} ({size} bytes)")
+                files.append({"path": str(rel_path), "type": "file", "size": item.stat().st_size})
 
-        return "\n".join(lines)
+        return {"project_path": str(root), "files": files}
 
-    @mcp.tool()
-    def validate_project(project_path: str) -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Validate Project",
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def validate_project(project_path: str) -> dict:
         """
         Validate an AACF project's structure and configuration.
         验证 AACF 项目的结构和配置。
@@ -376,7 +402,7 @@ wheels/
             issues.append("Missing required file: main.py")
 
         if issues:
-            return "Validation failed:\n  - " + "\n  - ".join(issues)
+            return {"valid": False, "issues": issues, "warnings": warnings}
 
         # Validate agents.py
         agents_content = agents_file.read_text(encoding="utf-8")
@@ -407,26 +433,9 @@ wheels/
             warnings.append("LLMConfig url is empty string")
 
         # Build result
-        if not issues and not warnings:
-            return "Project validation passed! All checks OK."
-
-        result_lines = ["Project validation results:", ""]
-
-        if issues:
-            result_lines.append(f"Issues ({len(issues)}):")
-            for issue in issues:
-                result_lines.append(f"  [ERROR] {issue}")
-            result_lines.append("")
-
-        if warnings:
-            result_lines.append(f"Warnings ({len(warnings)}):")
-            for warning in warnings:
-                result_lines.append(f"  [WARN] {warning}")
-            result_lines.append("")
-
-        if issues:
-            result_lines.append("Validation: FAILED")
-        else:
-            result_lines.append("Validation: PASSED (with warnings)")
-
-        return "\n".join(result_lines)
+        result = {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "warnings": warnings,
+        }
+        return result

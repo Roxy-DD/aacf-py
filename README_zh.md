@@ -180,12 +180,65 @@ def analyzer(text: str):
 ## 命令行工具
 
 ```bash
-aacf init my_project        # 初始化项目
-aacf run main.py            # 运行脚本
-aacf sync .                 # 注入文档字符串到源码
-aacf watch .                # 监听并自动注入
-aacf doc aacf --port 8080   # API 文档服务器
+aacf init my_project            # 初始化项目（创建 venv + 安装 aacf）
+aacf init my_project --no-venv  # 初始化项目（跳过 venv，秒完成）
+aacf run main.py                # 运行脚本
+aacf sync .                     # 注入文档字符串到源码
+aacf watch .                    # 监听并自动注入
+aacf doc aacf --port 8080       # API 文档服务器
 ```
+
+---
+
+## MCP 服务器
+
+AACF 提供 MCP（Model Context Protocol）服务器，用于 AI 辅助开发。AI 客户端（如 Qoder、Claude Desktop）可使用 AACF 工具来帮助你构建和管理项目。
+
+```bash
+# 安装 MCP 支持
+pip install aacf[mcp]
+
+# 启动 MCP 服务器（stdio 模式）
+python -m aacf_mcp
+```
+
+### 客户端配置
+
+Qoder（`.qoder/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "aacf": {
+      "command": "python",
+      "args": ["-m", "aacf_mcp"]
+    }
+  }
+}
+```
+
+Claude Desktop（`claude_desktop_config.json`）：
+
+```json
+{
+  "mcpServers": {
+    "aacf": {
+      "command": "python",
+      "args": ["-m", "aacf_mcp"]
+    }
+  }
+}
+```
+
+> 推荐使用 `python -m aacf_mcp` 而非 `aacf-mcp`，跨环境兼容性更好。
+
+**可用 MCP 工具：**
+
+| 分类 | 工具 |
+|------|------|
+| 项目 | `init_project`, `read_project`, `validate_project` |
+| 节点 | `create_node`, `list_nodes`, `get_node_info`, `configure_node` |
+| 管道 | `compile_pipeline`, `get_dependency_graph`, `get_execution_order`, `get_parallel_groups`, `run_pipeline` |
 
 ---
 

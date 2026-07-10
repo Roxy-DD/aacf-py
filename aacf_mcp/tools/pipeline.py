@@ -11,6 +11,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+from mcp.types import ToolAnnotations
+
 
 def _load_project_module(project_path: str):
     """
@@ -77,8 +79,15 @@ def _compile_and_get_analyzer(project_path: str):
 def register_pipeline_tools(mcp):
     """Register all pipeline management tools with the MCP server."""
 
-    @mcp.tool()
-    def compile_pipeline(project_path: str) -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Compile Pipeline",
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def compile_pipeline(project_path: str) -> dict:
         """
         Compile an AACF project: analyze dependencies and build the DAG.
         编译 AACF 项目：分析依赖关系并构建 DAG。
@@ -89,33 +98,33 @@ def register_pipeline_tools(mcp):
         try:
             _, analyzer, error = _compile_and_get_analyzer(project_path)
             if error:
-                return error
+                return {"error": error}
 
             execution_order = analyzer.get_execution_order()
             parallel_groups = analyzer.get_parallel_groups()
 
-            lines = [
-                "Pipeline compiled successfully!",
-                "",
-                f"Total nodes: {len(execution_order)}",
-                "",
-                "Execution order (topological):",
-            ]
-            for i, name in enumerate(execution_order, 1):
-                lines.append(f"  {i}. {name}")
-
-            lines.append("")
-            lines.append("Parallel groups (can run simultaneously):")
-            for i, group in enumerate(parallel_groups, 1):
-                lines.append(f"  Group {i}: {', '.join(group)}")
-
-            return "\n".join(lines)
+            return {
+                "status": "compiled",
+                "total_nodes": len(execution_order),
+                "execution_order": execution_order,
+                "parallel_groups": [
+                    {"group": i + 1, "nodes": list(group)}
+                    for i, group in enumerate(parallel_groups)
+                ],
+            }
 
         except Exception as e:
-            return f"Compilation failed: {type(e).__name__}: {e}"
+            return {"error": f"Compilation failed: {type(e).__name__}: {e}"}
 
-    @mcp.tool()
-    def get_dependency_graph(project_path: str) -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Get Dependency Graph",
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def get_dependency_graph(project_path: str) -> dict:
         """
         Get the DAG dependency graph of an AACF project.
         获取 AACF 项目的 DAG 依赖图。
@@ -126,25 +135,30 @@ def register_pipeline_tools(mcp):
         try:
             _, analyzer, error = _compile_and_get_analyzer(project_path)
             if error:
-                return error
+                return {"error": error}
 
-            lines = ["Dependency Graph (DAG):", ""]
             dep_graph = analyzer.get_dependency_graph()
+            execution_order = analyzer.get_execution_order()
 
-            for node_name in analyzer.get_execution_order():
+            graph = {}
+            for node_name in execution_order:
                 deps = dep_graph.get(node_name, set())
-                dep_str = ", ".join(sorted(deps)) if deps else "(none)"
-                lines.append(f"  {node_name}:")
-                lines.append(f"    Depends on: {dep_str}")
-                lines.append("")
+                graph[node_name] = {"depends_on": sorted(deps)}
 
-            return "\n".join(lines)
+            return {"graph": graph}
 
         except Exception as e:
-            return f"Failed to get dependency graph: {type(e).__name__}: {e}"
+            return {"error": f"Failed to get dependency graph: {type(e).__name__}: {e}"}
 
-    @mcp.tool()
-    def get_execution_order(project_path: str) -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Get Execution Order",
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def get_execution_order(project_path: str) -> dict:
         """
         Get the topological execution order of nodes.
         获取节点的拓扑执行顺序。
@@ -155,20 +169,23 @@ def register_pipeline_tools(mcp):
         try:
             _, analyzer, error = _compile_and_get_analyzer(project_path)
             if error:
-                return error
+                return {"error": error}
 
             order = analyzer.get_execution_order()
-            lines = [f"Execution order ({len(order)} nodes):", ""]
-            for i, name in enumerate(order, 1):
-                lines.append(f"  {i}. {name}")
-
-            return "\n".join(lines)
+            return {"node_count": len(order), "execution_order": order}
 
         except Exception as e:
-            return f"Failed to get execution order: {type(e).__name__}: {e}"
+            return {"error": f"Failed to get execution order: {type(e).__name__}: {e}"}
 
-    @mcp.tool()
-    def get_parallel_groups(project_path: str) -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Get Parallel Groups",
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def get_parallel_groups(project_path: str) -> dict:
         """
         Get parallel execution groups (nodes that can run simultaneously).
         获取并行执行分组（可以同时运行的节点）。
@@ -179,20 +196,30 @@ def register_pipeline_tools(mcp):
         try:
             _, analyzer, error = _compile_and_get_analyzer(project_path)
             if error:
-                return error
+                return {"error": error}
 
             groups = analyzer.get_parallel_groups()
-            lines = [f"Parallel groups ({len(groups)} groups):", ""]
-            for i, group in enumerate(groups, 1):
-                lines.append(f"  Group {i} (parallel): {', '.join(group)}")
-
-            return "\n".join(lines)
+            return {
+                "group_count": len(groups),
+                "parallel_groups": [
+                    {"group": i + 1, "nodes": list(group)}
+                    for i, group in enumerate(groups)
+                ],
+            }
 
         except Exception as e:
-            return f"Failed to get parallel groups: {type(e).__name__}: {e}"
+            return {"error": f"Failed to get parallel groups: {type(e).__name__}: {e}"}
 
-    @mcp.tool()
-    def run_pipeline(project_path: str, inputs: str = "{}") -> str:
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Run Pipeline",
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=True,
+        ),
+    )
+    def run_pipeline(project_path: str, inputs: str = "{}") -> dict:
         """
         Execute an AACF pipeline with given inputs.
         使用给定输入执行 AACF 管道。
@@ -209,17 +236,17 @@ def register_pipeline_tools(mcp):
         try:
             input_dict = json.loads(inputs) if inputs else {}
         except json.JSONDecodeError as e:
-            return f"Invalid JSON inputs: {e}"
+            return {"error": f"Invalid JSON inputs: {e}"}
 
         try:
             app, _, error = _compile_and_get_analyzer(project_path)
             if error:
-                return error
+                return {"error": error}
 
             # Run the pipeline with inputs parameter
             result = app.run_pipeline(inputs=input_dict)
 
-            return f"Pipeline executed successfully!\n\nResult:\n{result}"
+            return {"status": "success", "results": result}
 
         except Exception as e:
-            return f"Pipeline execution failed: {type(e).__name__}: {e}"
+            return {"error": f"Pipeline execution failed: {type(e).__name__}: {e}"}

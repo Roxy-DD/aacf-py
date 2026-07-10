@@ -628,7 +628,8 @@ results = app.run_pipeline(inputs={"step_a": {"text": "input"}})
 
 | 命令 | 描述 |
 |------|------|
-| `aacf init <name>` | 初始化项目 |
+| `aacf init <name>` | 初始化项目（创建 venv + 安装 aacf） |
+| `aacf init <name> --no-venv` | 初始化项目（跳过 venv，秒完成） |
 | `aacf run <script>` | 运行脚本 |
 | `aacf sync <path>` | 注入文档字符串到源码 |
 | `aacf watch <path>` | 监听并自动注入 |
@@ -658,16 +659,33 @@ python -m aacf_mcp
 
 ### 客户端配置
 
+Qoder（`.qoder/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "aacf": {
+      "command": "python",
+      "args": ["-m", "aacf_mcp"]
+    }
+  }
+}
+```
+
 Claude Desktop（`claude_desktop_config.json`）：
 
 ```json
 {
   "mcpServers": {
     "aacf": {
-      "command": "aacf-mcp"
+      "command": "python",
+      "args": ["-m", "aacf_mcp"]
     }
   }
 }
+```
+
+> 推荐使用 `python -m aacf_mcp` 而非 `aacf-mcp`，跨环境兼容性更好。
 ```
 
 ### 可用工具
@@ -862,6 +880,8 @@ pip install pyvis>=0.3.2
 | `CircularDependencyError` | 节点图中有循环 | 打破依赖循环 |
 | `PipelineError` | 节点失败，下游阻塞 | 检查失败节点的错误信息 |
 | `NodeExecutionError` | 所有重试耗尽 | 增加 `max_retries` 或修复根本原因 |
+| MCP 服务器未启动 | `aacf-mcp` 不在 PATH 中 | 在 mcp.json 中使用 `python -m aacf_mcp` |
+| `aacf init` 很慢 | venv 创建 + pip 安装耗时 | 使用 `--no-venv` 参数秒完成 |
 
 ---
 

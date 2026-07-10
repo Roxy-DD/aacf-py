@@ -211,6 +211,7 @@ def inject_docstrings_for_file(filepath: str) -> bool:
 @app.command()
 def init(
     project_name: str = typer.Argument(..., help="The name of your new AACF project / 新项目名称"),
+    no_venv: bool = typer.Option(False, "--no-venv", help="Skip virtual environment creation / 跳过虚拟环境创建"),
 ):
     """Initialize a new AACF project with the recommended directory structure.
     初始化一个新的 AACF 项目，包含推荐的目录结构。"""
@@ -226,7 +227,8 @@ def init(
         raise typer.Exit(code=1)
 
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
-        progress.add_task(description="Creating project structure / 创建项目结构...", total=None)
+        # Step 1: Create project files / 创建项目文件
+        task = progress.add_task(description="Creating project structure / 创建项目结构...", total=None)
         # 创建项目目录 / Create project directory
         project_dir.mkdir(parents=True)
 
@@ -379,35 +381,66 @@ def init(
             encoding="utf-8",
         )
 
-        # 初始化虚拟环境并安装 aacf / Initialize venv and install aacf
-        venv_created = False
-        try:
-            subprocess.check_call(
-                [sys.executable, "-m", "venv", ".venv"],
-                cwd=str(project_dir),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            venv_created = True
-        except (subprocess.CalledProcessError, Exception):
-            pass  # 虚拟环境创建失败不影响项目初始化 / venv failure is non-fatal
+        # 创建 .qoder/mcp.json — MCP 服务配置 / Create .qoder/mcp.json — MCP server config
+        qoder_dir = project_dir / ".qoder"
+        qoder_dir.mkdir(exist_ok=True)
+        mcp_json = qoder_dir / "mcp.json"
+        mcp_json.write_text(
+            '{\n'
+            '  "mcpServers": {\n'
+            '    "aacf": {\n'
+            '      "command": "python",\n'
+            '      "args": ["-m", "aacf_mcp"]\n'
+            '    }\n'
+            '  }\n'
+            '}\n',
+            encoding="utf-8",
+        )
 
-        if venv_created:
-            # 在 venv 中安装 aacf / Install aacf in the venv
-            venv_python = project_dir / ".venv" / "Scripts" / "python.exe"
-            if not venv_python.exists():
-                venv_python = project_dir / ".venv" / "bin" / "python"
+        progress.update(task, description="Project structure created / 项目结构已创建")
+
+        # Step 2: Create virtual environment / 创建虚拟环境
+        venv_created = False
+        if not no_venv:
+            task = progress.add_task(description="Creating virtual environment / 创建虚拟环境...", total=None)
             try:
                 subprocess.check_call(
-                    [str(venv_python), "-m", "pip", "install", "aacf", "-q"],
+                    [sys.executable, "-m", "venv", ".venv"],
+                    cwd=str(project_dir),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    timeout=30,
                 )
+                venv_created = True
+                progress.update(task, description="Virtual environment created / 虚拟环境已创建")
+            except subprocess.TimeoutExpired:
+                progress.update(task, description="[yellow]Virtual environment creation timed out / 虚拟环境创建超时[/]")
             except (subprocess.CalledProcessError, Exception):
-                pass  # 安装失败时用户可手动安装 / User can install manually if this fails
+                progress.update(task, description="[yellow]Virtual environment creation failed / 虚拟环境创建失败[/]")
+
+            # Step 3: Install aacf / 安装 aacf
+            if venv_created:
+                task = progress.add_task(description="Installing aacf / 安装 aacf...", total=None)
+                venv_python = project_dir / ".venv" / "Scripts" / "python.exe"
+                if not venv_python.exists():
+                    venv_python = project_dir / ".venv" / "bin" / "python"
+                try:
+                    subprocess.check_call(
+                        [str(venv_python), "-m", "pip", "install", "aacf", "-q"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=120,
+                    )
+                    progress.update(task, description="aacf installed / aacf 已安装")
+                except subprocess.TimeoutExpired:
+                    progress.update(task, description="[yellow]pip install timed out / pip 安装超时[/]")
+                except (subprocess.CalledProcessError, Exception):
+                    progress.update(task, description="[yellow]pip install failed / pip 安装失败[/]")
 
     console.print("[bold green]✔[/] Project structure created / 项目结构已创建。")
-    if venv_created:
+    if no_venv:
+        console.print("[dim]Skipped virtual environment (--no-venv) / 已跳过虚拟环境创建[/]")
+    elif venv_created:
         console.print("[bold green]✔[/] Virtual environment created and aacf installed / 虚拟环境已创建并安装 aacf。")
     else:
         console.print(

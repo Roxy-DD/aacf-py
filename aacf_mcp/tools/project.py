@@ -242,14 +242,14 @@ wheels/
         qoder_dir.mkdir(exist_ok=True)
         mcp_json = qoder_dir / "mcp.json"
         mcp_json.write_text(
-            '{\n'
+            "{\n"
             '  "mcpServers": {\n'
             '    "aacf": {\n'
             '      "command": "python",\n'
             '      "args": ["-m", "aacf_mcp"]\n'
-            '    }\n'
-            '  }\n'
-            '}\n',
+            "    }\n"
+            "  }\n"
+            "}\n",
             encoding="utf-8",
         )
 

@@ -47,8 +47,12 @@ def article_writer(title: str):
     pass
 
 
-@app.node("keyword_extractor").who("内容分析师").what("从文本中提取关键词并评估其所属领域").format("json").out(
-    '{"keywords": ["关键词1", ...], "domain": "领域", "summary": "一句话摘要"}'
+@(
+    app.node("keyword_extractor")
+    .who("内容分析师")
+    .what("从文本中提取关键词并评估其所属领域")
+    .format("json")
+    .out('{"keywords": ["关键词1", ...], "domain": "领域", "summary": "一句话摘要"}')
 )
 def keyword_extractor(text: str):
     """
@@ -87,8 +91,11 @@ def text_analyzer(text: str):
     )
 
 
-@app.node("content_router").who("内容总监").what("分析用户需求，分派给最合适的专业节点处理").module(
-    [title_generator, article_writer, keyword_extractor]
+@(
+    app.node("content_router")
+    .who("内容总监")
+    .what("分析用户需求，分派给最合适的专业节点处理")
+    .module([title_generator, article_writer, keyword_extractor])
 )
 def content_router(user_req: str):
     """

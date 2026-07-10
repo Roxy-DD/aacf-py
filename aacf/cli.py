@@ -251,7 +251,7 @@ def init(
             "    .where(context)   - Business context / 业务环境\n"
             "    .why(reason)      - Execution intent / 执行意图\n"
             "    .how(method)      - Operation method / 操作方法\n"
-            '    .stream(True)     - Enable streaming / 启用流式输出\n'
+            "    .stream(True)     - Enable streaming / 启用流式输出\n"
             '    .format("json")   - JSON output / JSON 输出\n'
             "    .out(requirement) - Output format / 输出格式要求\n"
             "    .cache(ttl=300)   - Enable cache / 启用缓存\n"
@@ -284,7 +284,7 @@ def init(
             '@app.node("summary").who("摘要专家").what("根据输入内容生成简洁摘要").cache(ttl=300)\n'
             "def summary(greeting: str):\n"
             '    """A summary node that depends on greeting (param name matches upstream node).\n'
-            "    摘要节点，依赖 greeting（参数名匹配上游节点名）。\"\"\"\n"
+            '    摘要节点，依赖 greeting（参数名匹配上游节点名）。"""\n'
             "    pass\n",
             encoding="utf-8",
         )
@@ -305,15 +305,15 @@ def init(
             "\n"
             'if __name__ == "__main__":\n'
             "    # 1. Call a single node / 调用单个节点\n"
-            '    print(\"=== Node Call / 节点调用 ===\")\n'
-            '    print(greeting(name=\"World\"))\n'
+            '    print("=== Node Call / 节点调用 ===")\n'
+            '    print(greeting(name="World"))\n'
             "    print()\n"
             "\n"
             "    # 2. Run pipeline (auto-resolves dependencies) / 运行管道（自动解析依赖）\n"
-            '    print(\"=== Pipeline / 管道执行 ===\")\n'
-            '    results = app.run_pipeline(inputs={\"greeting\": {\"name\": \"AACF\"}})\n'
+            '    print("=== Pipeline / 管道执行 ===")\n'
+            '    results = app.run_pipeline(inputs={"greeting": {"name": "AACF"}})\n'
             "    for node_name, result in results.items():\n"
-            '        print(f\"{node_name}: {result}\")\n',
+            '        print(f"{node_name}: {result}")\n',
             encoding="utf-8",
         )
 
@@ -386,14 +386,14 @@ def init(
         qoder_dir.mkdir(exist_ok=True)
         mcp_json = qoder_dir / "mcp.json"
         mcp_json.write_text(
-            '{\n'
+            "{\n"
             '  "mcpServers": {\n'
             '    "aacf": {\n'
             '      "command": "python",\n'
             '      "args": ["-m", "aacf_mcp"]\n'
-            '    }\n'
-            '  }\n'
-            '}\n',
+            "    }\n"
+            "  }\n"
+            "}\n",
             encoding="utf-8",
         )
 
@@ -414,7 +414,9 @@ def init(
                 venv_created = True
                 progress.update(task, description="Virtual environment created / 虚拟环境已创建")
             except subprocess.TimeoutExpired:
-                progress.update(task, description="[yellow]Virtual environment creation timed out / 虚拟环境创建超时[/]")
+                progress.update(
+                    task, description="[yellow]Virtual environment creation timed out / 虚拟环境创建超时[/]"
+                )
             except (subprocess.CalledProcessError, Exception):
                 progress.update(task, description="[yellow]Virtual environment creation failed / 虚拟环境创建失败[/]")
 

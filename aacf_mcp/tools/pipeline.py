@@ -107,10 +107,7 @@ def register_pipeline_tools(mcp):
                 "status": "compiled",
                 "total_nodes": len(execution_order),
                 "execution_order": execution_order,
-                "parallel_groups": [
-                    {"group": i + 1, "nodes": list(group)}
-                    for i, group in enumerate(parallel_groups)
-                ],
+                "parallel_groups": [{"group": i + 1, "nodes": list(group)} for i, group in enumerate(parallel_groups)],
             }
 
         except Exception as e:
@@ -201,10 +198,7 @@ def register_pipeline_tools(mcp):
             groups = analyzer.get_parallel_groups()
             return {
                 "group_count": len(groups),
-                "parallel_groups": [
-                    {"group": i + 1, "nodes": list(group)}
-                    for i, group in enumerate(groups)
-                ],
+                "parallel_groups": [{"group": i + 1, "nodes": list(group)} for i, group in enumerate(groups)],
             }
 
         except Exception as e:

@@ -214,14 +214,16 @@ def {name}(text: str):
         node_list = []
         for n in nodes:
             params = ", ".join(f"{p['name']}: {p['type']}" if p["type"] else p["name"] for p in n["params"])
-            node_list.append({
-                "name": n["name"],
-                "line": n["lineno"],
-                "decorator": n["decorator"],
-                "params": params or "(none)",
-                "mode": "LLM auto-call" if not n["has_body_code"] else "Explicit code override",
-                "docstring": n["docstring"].split("\n")[0].strip() if n["docstring"] else "",
-            })
+            node_list.append(
+                {
+                    "name": n["name"],
+                    "line": n["lineno"],
+                    "decorator": n["decorator"],
+                    "params": params or "(none)",
+                    "mode": "LLM auto-call" if not n["has_body_code"] else "Explicit code override",
+                    "docstring": n["docstring"].split("\n")[0].strip() if n["docstring"] else "",
+                }
+            )
 
         return {"file": str(agents_file), "count": len(node_list), "nodes": node_list}
 

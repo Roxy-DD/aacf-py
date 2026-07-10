@@ -10,7 +10,6 @@ structured context about common AACF development tasks.
 """
 
 
-
 def register_prompts(mcp):
     """Register all prompts with the MCP server."""
 
@@ -88,7 +87,7 @@ def register_prompts(mcp):
                     "text": (
                         "Please explain the AACF chainable API for configuring nodes. "
                         "Include:\n\n"
-                        "1. Basic decorator syntax: @app.node(\"name\")\n"
+                        '1. Basic decorator syntax: @app.node("name")\n'
                         "2. All available chain methods with descriptions:\n"
                         "   .who(), .what(), .where(), .why(), .how(),\n"
                         "   .stream(), .format(), .out(), .cache(), .retry(), .timeout()\n"

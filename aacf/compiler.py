@@ -14,21 +14,21 @@ This module provides:
 - DAG 构建：根据依赖关系构建有向无环图
 - 执行计划：生成拓扑执行顺序
 """
-import ast
+
 import hashlib
 import inspect
 import json
 import typing
-from collections import defaultdict, deque
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
-
+from typing import Any, Dict, List, Optional, Set
 
 # ─────────────────────────────────────────────
 # Error Hierarchy — Rust 风格错误类型 / Rust-style error types
 # ─────────────────────────────────────────────
+
 
 class AACFError(Exception):
     """
@@ -37,6 +37,7 @@ class AACFError(Exception):
     Following Rust's philosophy: errors are explicit, typed, and carry context.
     遵循 Rust 哲学：错误是显式的、有类型的、携带上下文的。
     """
+
     pass
 
 
@@ -47,18 +48,18 @@ class CircularDependencyError(AACFError):
     Attributes:
         cycle: List of node names forming the cycle / 构成循环的节点名列表
     """
+
     def __init__(self, cycle: List[str]):
         self.cycle = cycle
         cycle_str = " -> ".join(cycle)
-        super().__init__(
-            f"Circular dependency detected / 检测到循环依赖: {cycle_str}"
-        )
+        super().__init__(f"Circular dependency detected / 检测到循环依赖: {cycle_str}")
 
 
 class DependencyError(AACFError):
     """
     Dependency resolution error (e.g., missing dependency) / 依赖解析错误（如缺少依赖）。
     """
+
     pass
 
 
@@ -71,6 +72,7 @@ class NodeExecutionError(AACFError):
         attempts: Number of attempts made / 尝试次数
         cause: Original error message / 原始错误信息
     """
+
     def __init__(self, node_name: str, attempts: int, cause: str):
         self.node_name = node_name
         self.attempts = attempts
@@ -85,6 +87,7 @@ class NodeConfigError(AACFError):
     """
     Invalid node configuration / 节点配置无效。
     """
+
     pass
 
 
@@ -92,6 +95,7 @@ class PipelineError(AACFError):
     """
     Pipeline-level error (e.g., blocked execution) / 管道级错误（如执行阻塞）。
     """
+
     pass
 
 
@@ -149,12 +153,12 @@ class ExecutionResult:
         self._from_cache = from_cache
 
     @staticmethod
-    def success(value: Any, node_name: str = "", attempts: int = 1, from_cache: bool = False) -> 'ExecutionResult':
+    def success(value: Any, node_name: str = "", attempts: int = 1, from_cache: bool = False) -> "ExecutionResult":
         """Create a success result / 创建成功结果。"""
         return ExecutionResult(ok=True, value=value, node_name=node_name, attempts=attempts, from_cache=from_cache)
 
     @staticmethod
-    def failure(error: str, node_name: str = "", attempts: int = 1) -> 'ExecutionResult':
+    def failure(error: str, node_name: str = "", attempts: int = 1) -> "ExecutionResult":
         """Create a failure result / 创建失败结果。"""
         return ExecutionResult(ok=False, error=error, node_name=node_name, attempts=attempts)
 
@@ -247,7 +251,7 @@ class ExecutionResult:
             "ok": self._ok,
         }
 
-    def map(self, func: typing.Callable) -> 'ExecutionResult':
+    def map(self, func: typing.Callable) -> "ExecutionResult":
         """
         Apply a function to the value if ok (Rust-style) / 成功时对值应用函数（Rust 风格）。
 
@@ -285,6 +289,7 @@ class ExecutionResult:
 
 class NodeStatus(Enum):
     """Node execution status / 节点执行状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     DONE = "done"
@@ -307,6 +312,7 @@ class NodeInfo:
         status: Current execution status / 当前执行状态
         result: Execution result (if completed) / 执行结果（如已完成）
     """
+
     name: str
     func: Any = None
     params: List[str] = field(default_factory=list)
@@ -582,10 +588,7 @@ class DependencyAnalyzer:
             self.analyze()
 
         # Create a canonical representation of the DAG
-        dag_data = {
-            name: sorted(list(info.dependencies))
-            for name, info in sorted(self.nodes.items())
-        }
+        dag_data = {name: sorted(list(info.dependencies)) for name, info in sorted(self.nodes.items())}
 
         # Serialize to JSON and compute hash
         dag_json = json.dumps(dag_data, sort_keys=True)
@@ -623,12 +626,14 @@ class ExecutionPlanner:
 
         for node_name in order:
             node_info = self.analyzer.nodes[node_name]
-            self._plan.append({
-                "name": node_name,
-                "dependencies": list(node_info.dependencies),
-                "params": node_info.params,
-                "status": NodeStatus.PENDING,
-            })
+            self._plan.append(
+                {
+                    "name": node_name,
+                    "dependencies": list(node_info.dependencies),
+                    "params": node_info.params,
+                    "status": NodeStatus.PENDING,
+                }
+            )
 
         return self._plan
 
@@ -644,8 +649,7 @@ class ExecutionPlanner:
         for step in self._plan:
             if step["status"] == NodeStatus.PENDING:
                 deps_satisfied = all(
-                    any(s["name"] == dep and s["status"] == NodeStatus.DONE
-                        for s in self._plan)
+                    any(s["name"] == dep and s["status"] == NodeStatus.DONE for s in self._plan)
                     for dep in step["dependencies"]
                 )
                 if deps_satisfied:
@@ -688,15 +692,13 @@ class ExecutionPlanner:
         Returns:
             True if all nodes are done or failed / 如果所有节点都已完成或失败返回 True
         """
-        return all(
-            step["status"] in (NodeStatus.DONE, NodeStatus.FAILED)
-            for step in self._plan
-        )
+        return all(step["status"] in (NodeStatus.DONE, NodeStatus.FAILED) for step in self._plan)
 
 
 # ─────────────────────────────────────────────
 # Atomic Node — 原子化执行单元 / Atomic execution unit
 # ─────────────────────────────────────────────
+
 
 @dataclass
 class AtomicNodeConfig:
@@ -711,6 +713,7 @@ class AtomicNodeConfig:
         cache_ttl: Cache time-to-live in seconds (0 = no expiry) / 缓存有效期（秒，0 = 永不过期）
         timeout: Execution timeout in seconds (0 = no timeout) / 执行超时（秒，0 = 无超时）
     """
+
     max_retries: int = 3
     retry_delay: float = 1.0
     cache_enabled: bool = False
@@ -759,6 +762,7 @@ class AtomicNode:
             return False
         if self.config.cache_ttl > 0:
             import time
+
             return (time.time() - self._cache_time) < self.config.cache_ttl
         return True
 
@@ -800,6 +804,7 @@ class AtomicNode:
                 # Cache the result
                 if self.config.cache_enabled:
                     import time
+
                     self._cache = self.result
                     self._cache_time = time.time()
 
@@ -813,6 +818,7 @@ class AtomicNode:
 
                 if self.attempts < self.config.max_retries:
                     import time
+
                     time.sleep(self.config.retry_delay)
 
         # All retries exhausted
@@ -897,8 +903,7 @@ class AtomicScheduler:
             if node.status != NodeStatus.PENDING:
                 continue
             deps_met = all(
-                dep in self._results and self.nodes[dep].status == NodeStatus.DONE
-                for dep in node.dependencies
+                dep in self._results and self.nodes[dep].status == NodeStatus.DONE for dep in node.dependencies
             )
             if deps_met:
                 ready.append(node)
@@ -948,7 +953,9 @@ class AtomicScheduler:
         inputs = inputs or {}
         self._results = {}
 
-        while len(self._results) + len([n for n in self.nodes.values() if n.status == NodeStatus.SKIPPED]) < len(self.nodes):
+        while len(self._results) + len([n for n in self.nodes.values() if n.status == NodeStatus.SKIPPED]) < len(
+            self.nodes
+        ):
             ready = self.get_ready_nodes()
             if not ready:
                 # Check for failed nodes blocking progress
@@ -1036,7 +1043,7 @@ class AtomicScheduler:
                 futures = {}
                 for node_name in group:
                     node = self.nodes[node_name]
-                    
+
                     # Skip nodes whose parameters cannot be satisfied
                     if not self._can_execute(node, inputs):
                         node.status = NodeStatus.SKIPPED
@@ -1082,6 +1089,7 @@ class AtomicScheduler:
 # ─────────────────────────────────────────────
 # DAG Cache — 增量缓存机制 / Incremental cache mechanism
 # ─────────────────────────────────────────────
+
 
 class DAGCache:
     """

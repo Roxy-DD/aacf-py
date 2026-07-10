@@ -27,16 +27,18 @@ Usage::
     visualizer = DAGVisualizer(app)
     visualizer.generate_html("dag.html")
 """
+
 import html
 from typing import Any, Dict, Optional
 
 try:
     from pyvis.network import Network
+
     PYVIS_AVAILABLE = True
 except ImportError:
     PYVIS_AVAILABLE = False
 
-from aacf.compiler import NodeStatus, DependencyAnalyzer, AtomicScheduler
+from aacf.compiler import AtomicScheduler, DependencyAnalyzer, NodeStatus
 
 
 class DAGVisualizer:
@@ -68,11 +70,11 @@ class DAGVisualizer:
 
     # Node status color mapping / 节点状态颜色映射
     STATUS_COLORS = {
-        NodeStatus.PENDING: "#FFA500",      # Orange / 橙色
-        NodeStatus.RUNNING: "#1E90FF",      # Blue / 蓝色
-        NodeStatus.DONE: "#32CD32",         # Green / 绿色
-        NodeStatus.FAILED: "#FF4500",       # Red / 红色
-        NodeStatus.SKIPPED: "#808080",      # Gray / 灰色
+        NodeStatus.PENDING: "#FFA500",  # Orange / 橙色
+        NodeStatus.RUNNING: "#1E90FF",  # Blue / 蓝色
+        NodeStatus.DONE: "#32CD32",  # Green / 绿色
+        NodeStatus.FAILED: "#FF4500",  # Red / 红色
+        NodeStatus.SKIPPED: "#808080",  # Gray / 灰色
     }
 
     # Node status shapes / 节点状态形状
@@ -134,10 +136,7 @@ class DAGVisualizer:
         self.directed = directed
 
         if self.analyzer is None:
-            raise ValueError(
-                "Either app or analyzer must be provided\n"
-                "必须提供 app 或 analyzer"
-            )
+            raise ValueError("Either app or analyzer must be provided\n必须提供 app 或 analyzer")
 
     def _get_node_status(self, node_name: str) -> NodeStatus:
         """
@@ -188,27 +187,27 @@ class DAGVisualizer:
         result = self._get_node_result(node_name)
 
         parts = []
-        parts.append(f'<b>Node / 节点:</b> {html.escape(node_name)}')
+        parts.append(f"<b>Node / 节点:</b> {html.escape(node_name)}")
 
         if self.show_status:
-            parts.append(f'<b>Status / 状态:</b> {html.escape(status.value)}')
+            parts.append(f"<b>Status / 状态:</b> {html.escape(status.value)}")
 
         # DSL metadata / DSL 元数据
         if self.app and node_name in self.app._wrappers:
             wrapper = self.app._wrappers[node_name]
             meta = wrapper.__aacf_meta__
             if meta.get("who"):
-                parts.append(f'<b>Who / 角色:</b> {html.escape(meta["who"])}')
+                parts.append(f"<b>Who / 角色:</b> {html.escape(meta['who'])}")
             if meta.get("what"):
-                parts.append(f'<b>What / 任务:</b> {html.escape(meta["what"])}')
+                parts.append(f"<b>What / 任务:</b> {html.escape(meta['what'])}")
             if meta.get("where"):
-                parts.append(f'<b>Where / 环境:</b> {html.escape(meta["where"])}')
+                parts.append(f"<b>Where / 环境:</b> {html.escape(meta['where'])}")
 
         if self.show_results and result is not None:
             result_str = str(result)
             if len(result_str) > 200:
                 result_str = result_str[:200] + "..."
-            parts.append(f'<b>Result / 结果:</b> {html.escape(result_str)}')
+            parts.append(f"<b>Result / 结果:</b> {html.escape(result_str)}")
 
         # Use <br> for HTML line breaks / 使用 <br> 实现 HTML 换行
         return "<br>".join(parts)
@@ -314,7 +313,7 @@ class DAGVisualizer:
         将自定义 HTML 工具提示系统注入到生成的 HTML 文件中。
         使用 hoverNode/blurNode 事件替换 vis.js 原生工具提示为自定义 HTML 渲染的工具提示。
         """
-        with open(output_path, 'r', encoding='utf-8') as f:
+        with open(output_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Build JS tooltip data object / 构建 JS 工具提示数据对象
@@ -383,7 +382,7 @@ class DAGVisualizer:
         if last_script_close != -1:
             content = content[:last_script_close] + custom_js + content[last_script_close:]
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(content)
 
     def generate_html_string(self) -> str:
@@ -400,15 +399,15 @@ class DAGVisualizer:
             html_content = visualizer.generate_html_string()
             # Embed in web page / 嵌入网页
         """
-        import tempfile
         import os
+        import tempfile
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
             temp_path = f.name
 
         try:
             self.generate_html(temp_path)
-            with open(temp_path, 'r', encoding='utf-8') as f:
+            with open(temp_path, "r", encoding="utf-8") as f:
                 return f.read()
         finally:
             if os.path.exists(temp_path):

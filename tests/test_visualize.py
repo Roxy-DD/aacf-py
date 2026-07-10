@@ -3,14 +3,16 @@
 """
 Tests for DAG visualization / DAG 可视化测试
 """
+
 import locale
-import pytest
-import tempfile
 import os
-from pathlib import Path
+import tempfile
+
+import pytest
 
 try:
     from aacf import AACF, DAGVisualizer
+
     PYVIS_AVAILABLE = True
 except ImportError:
     PYVIS_AVAILABLE = False
@@ -90,6 +92,7 @@ class TestDAGVisualizer:
         scheduler.run_all()
 
         from aacf.compiler import DependencyAnalyzer
+
         analyzer = DependencyAnalyzer()
         analyzer.register_node("a", params=[])
         analyzer.register_node("b", params=["a"])

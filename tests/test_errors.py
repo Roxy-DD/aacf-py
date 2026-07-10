@@ -3,17 +3,18 @@
 """
 Tests for error hierarchy and ExecutionResult / 错误层次结构与 ExecutionResult 测试
 """
+
 import pytest
+
 from aacf.compiler import (
     AACFError,
     CircularDependencyError,
     DependencyError,
-    NodeExecutionError,
-    NodeConfigError,
-    PipelineError,
     ExecutionResult,
+    NodeConfigError,
+    NodeExecutionError,
+    PipelineError,
 )
-
 
 # ─── Error Hierarchy Tests / 错误层次结构测试 ───
 
@@ -50,8 +51,14 @@ class TestErrorHierarchy:
 
     def test_all_errors_are_exceptions(self):
         """测试所有错误都是 Exception 子类"""
-        for err_cls in [AACFError, CircularDependencyError, DependencyError,
-                        NodeExecutionError, NodeConfigError, PipelineError]:
+        for err_cls in [
+            AACFError,
+            CircularDependencyError,
+            DependencyError,
+            NodeExecutionError,
+            NodeConfigError,
+            PipelineError,
+        ]:
             assert issubclass(err_cls, Exception)
 
 

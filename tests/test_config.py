@@ -3,7 +3,7 @@
 """
 Tests for LLMConfig / LLMConfig 测试
 """
-import pytest
+
 from aacf import LLMConfig
 
 
@@ -23,7 +23,7 @@ class TestLLMConfig:
             url="https://api.openai.com/v1/chat/completions",
             temperature=0.5,
             max_tokens=2048,
-            language="en"
+            language="en",
         )
         d = config.get_dict()
         assert d["model"] == "gpt-4"

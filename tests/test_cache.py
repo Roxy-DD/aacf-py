@@ -3,9 +3,8 @@
 """
 Tests for DAG caching and hash detection / DAG 缓存与哈希检测测试
 """
-import pytest
-from aacf.compiler import DependencyAnalyzer, DAGCache, AtomicScheduler, AtomicNodeConfig
 
+from aacf.compiler import AtomicNodeConfig, AtomicScheduler, DAGCache, DependencyAnalyzer
 
 # ─── DAG Hash Tests / DAG 哈希测试 ───
 

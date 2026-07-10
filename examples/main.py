@@ -7,18 +7,17 @@ main.py — AACF 内容创作助手演示 / AACF Content Creation Assistant Demo
   流式输出 / Streaming, 普通调用 / Regular call, 结构化 JSON / Structured JSON,
   显式代码覆盖 / Explicit code override, 智能路由 / Smart routing.
 """
+
 import json
 import sys
 
 from agents import (
     app,
-    title_generator,
     article_writer,
+    content_router,
     keyword_extractor,
     text_analyzer,
-    content_router,
-    extractor,
-    summarizer,
+    title_generator,
 )
 
 
@@ -45,7 +44,9 @@ def main():
     print()
 
     # ── 4. 显式代码覆盖 / Explicit code override ──
-    print("【4. 显式代码覆盖 / Code Override】使用自定义 prompt 覆盖默认生成器 / Using custom prompt to override default generator...")
+    print(
+        "【4. 显式代码覆盖 / Code Override】使用自定义 prompt 覆盖默认生成器 / Using custom prompt to override default generator..."
+    )
     print(text_analyzer(text=article))
     print()
 
@@ -56,24 +57,24 @@ def main():
 
     # ── 6. 管道执行 / Pipeline execution ──
     print("【6. 管道执行 / Pipeline】依赖分析与自动调度 / Dependency analysis and auto-scheduling...")
-    
+
     # 查看依赖关系 / View dependencies
     dep_graph = app.get_dependency_graph()
     print(f"依赖图 / Dependency graph: {dep_graph}")
-    
+
     exec_order = app.get_execution_order()
     print(f"执行顺序 / Execution order: {exec_order}")
-    
+
     parallel_groups = app.get_parallel_groups()
     print(f"并行分组 / Parallel groups: {parallel_groups}")
     print()
-    
+
     # 执行管道 / Execute pipeline
     print("执行管道 / Running pipeline...")
     results = app.run_pipeline(
         inputs={"extractor": {"raw_text": "量子计算正在突破传统算力瓶颈，未来可能改变整个计算行业"}}
     )
-    
+
     print(f"\n提取结果 / Extractor result: {results.get('extractor', 'N/A')}")
     print(f"摘要结果 / Summarizer result: {results.get('summarizer', 'N/A')}")
 

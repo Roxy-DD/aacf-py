@@ -3,7 +3,7 @@
 """
 Tests for AACF decorator and integration / AACF 装饰器与集成测试
 """
-import pytest
+
 from aacf import AACF, LLMConfig, NodeStatus
 
 
@@ -38,7 +38,18 @@ class TestAACFDecorator:
         """测试链式 API 所有参数"""
         app = AACF("test")
 
-        @app.node("full_node").who("Agent").where("Context").what("Task").why("Reason").how("Method").out("JSON").stream(True).format("json").build()
+        @(
+            app.node("full_node")
+            .who("Agent")
+            .where("Context")
+            .what("Task")
+            .why("Reason")
+            .how("Method")
+            .out("JSON")
+            .stream(True)
+            .format("json")
+            .build()
+        )
         def full_node(text: str):
             pass
 
@@ -56,7 +67,15 @@ class TestAACFDecorator:
         """测试链式 API 缓存配置"""
         app = AACF("test")
 
-        @app.node("cached_node").who("Agent").what("Task").cache(enabled=True, ttl=300).retry(max_attempts=5, delay=2.0).timeout(60).build()
+        @(
+            app.node("cached_node")
+            .who("Agent")
+            .what("Task")
+            .cache(enabled=True, ttl=300)
+            .retry(max_attempts=5, delay=2.0)
+            .timeout(60)
+            .build()
+        )
         def cached_node(text: str):
             pass
 

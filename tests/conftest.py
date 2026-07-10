@@ -4,7 +4,7 @@
 Pytest conftest — disable atexit docstring injection during tests.
 测试期间禁用 atexit docstring 注入，防止测试文件被修改。
 """
-import atexit
+
 import pytest
 
 
@@ -16,4 +16,5 @@ def _disable_atexit_injection():
     """
     yield
     import aacf.core as core
+
     core._AACF_NODE_REGISTRY.clear()

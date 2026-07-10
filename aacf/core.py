@@ -8,13 +8,13 @@ This is the sole runtime engine for AACF, containing:
 - llm_call: OpenAI-compatible HTTP call with exponential backoff retry / OpenAI 兼容的 HTTP 调用（带指数退避重试）
 - AACF: Flask-style app registry and @app.node() decorator / Flask 风格的应用注册表与 @app.node() 装饰器
 """
+
 import ast
 import atexit
 import copy
 import inspect
 import json
 import logging
-import os
 import sys
 import textwrap
 import time
@@ -22,7 +22,6 @@ import typing
 import urllib.error
 import urllib.request
 from functools import wraps
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 if sys.version_info >= (3, 12):
@@ -31,12 +30,16 @@ else:
     from typing_extensions import TypedDict, Unpack
 
 from typing import ParamSpec
-P = ParamSpec('P')
 
-from aacf._messages import PROMPT_TEMPLATES, DOCSTRING_TEMPLATES
+P = ParamSpec("P")
+
+from aacf._messages import PROMPT_TEMPLATES
 from aacf.compiler import (
-    DependencyAnalyzer, ExecutionPlanner, NodeStatus,
-    AtomicNode, AtomicNodeConfig, AtomicScheduler,
+    AtomicNodeConfig,
+    AtomicScheduler,
+    DependencyAnalyzer,
+    ExecutionPlanner,
+    NodeStatus,
 )
 
 logger = logging.getLogger("aacf")
@@ -45,6 +48,7 @@ logger = logging.getLogger("aacf")
 # ─────────────────────────────────────────────
 # NodeBuilder — 链式调用构建器 / Fluent builder
 # ─────────────────────────────────────────────
+
 
 class NodeBuilder:
     """
@@ -73,7 +77,7 @@ class NodeBuilder:
         )
     """
 
-    def __init__(self, app: 'AACF', name: str, func: Optional[typing.Callable] = None):
+    def __init__(self, app: "AACF", name: str, func: Optional[typing.Callable] = None):
         """
         初始化节点构建器 / Initialize node builder.
 
@@ -107,7 +111,7 @@ class NodeBuilder:
 
     # ── DSL 元数据方法 / DSL metadata methods ──
 
-    def who(self, role: str) -> 'NodeBuilder':
+    def who(self, role: str) -> "NodeBuilder":
         """
         设置智能体角色 / Set agent role.
 
@@ -120,7 +124,7 @@ class NodeBuilder:
         self._who = role
         return self
 
-    def where(self, context: str) -> 'NodeBuilder':
+    def where(self, context: str) -> "NodeBuilder":
         """
         设置业务环境 / Set business context.
 
@@ -133,7 +137,7 @@ class NodeBuilder:
         self._where = context
         return self
 
-    def what(self, task: str) -> 'NodeBuilder':
+    def what(self, task: str) -> "NodeBuilder":
         """
         设置核心任务 / Set core task.
 
@@ -146,7 +150,7 @@ class NodeBuilder:
         self._what = task
         return self
 
-    def why(self, reason: str) -> 'NodeBuilder':
+    def why(self, reason: str) -> "NodeBuilder":
         """
         设置执行意图 / Set execution intent.
 
@@ -159,7 +163,7 @@ class NodeBuilder:
         self._why = reason
         return self
 
-    def how(self, method: typing.Union[str, typing.List[str]]) -> 'NodeBuilder':
+    def how(self, method: typing.Union[str, typing.List[str]]) -> "NodeBuilder":
         """
         设置操作方法 / Set operation method.
 
@@ -172,7 +176,7 @@ class NodeBuilder:
         self._how = method
         return self
 
-    def module(self, nodes: typing.Union[str, typing.List[typing.Callable]]) -> 'NodeBuilder':
+    def module(self, nodes: typing.Union[str, typing.List[typing.Callable]]) -> "NodeBuilder":
         """
         设置智能路由模块 / Set smart routing modules.
 
@@ -185,7 +189,7 @@ class NodeBuilder:
         self._module = nodes
         return self
 
-    def out(self, format_req: str) -> 'NodeBuilder':
+    def out(self, format_req: str) -> "NodeBuilder":
         """
         设置输出格式要求 / Set output format requirement.
 
@@ -198,7 +202,7 @@ class NodeBuilder:
         self._out = format_req
         return self
 
-    def stream(self, enabled: bool = True) -> 'NodeBuilder':
+    def stream(self, enabled: bool = True) -> "NodeBuilder":
         """
         启用流式输出 / Enable streaming output.
 
@@ -211,7 +215,7 @@ class NodeBuilder:
         self._stream = enabled
         return self
 
-    def format(self, fmt: str) -> 'NodeBuilder':
+    def format(self, fmt: str) -> "NodeBuilder":
         """
         设置输出格式 / Set output format.
 
@@ -224,7 +228,7 @@ class NodeBuilder:
         self._format = fmt
         return self
 
-    def branches(self, mapping: Dict[str, typing.Callable]) -> 'NodeBuilder':
+    def branches(self, mapping: Dict[str, typing.Callable]) -> "NodeBuilder":
         """
         设置条件分支 / Set conditional branches.
 
@@ -239,7 +243,7 @@ class NodeBuilder:
 
     # ── 执行配置方法 / Execution config methods ──
 
-    def cache(self, enabled: bool = True, ttl: int = 0) -> 'NodeBuilder':
+    def cache(self, enabled: bool = True, ttl: int = 0) -> "NodeBuilder":
         """
         配置缓存 / Configure caching.
 
@@ -254,7 +258,7 @@ class NodeBuilder:
         self._cache_ttl = ttl
         return self
 
-    def retry(self, max_attempts: int = 3, delay: float = 1.0) -> 'NodeBuilder':
+    def retry(self, max_attempts: int = 3, delay: float = 1.0) -> "NodeBuilder":
         """
         配置重试策略 / Configure retry strategy.
 
@@ -269,7 +273,7 @@ class NodeBuilder:
         self._retry_delay = delay
         return self
 
-    def timeout(self, seconds: int) -> 'NodeBuilder':
+    def timeout(self, seconds: int) -> "NodeBuilder":
         """
         设置执行超时 / Set execution timeout.
 
@@ -334,9 +338,11 @@ class NodeBuilder:
         self._func = func
         return self.build()
 
+
 # ─────────────────────────────────────────────
 # LLMConfig — 大模型配置 / LLM Configuration
 # ─────────────────────────────────────────────
+
 
 class LLMConfigKwargs(TypedDict, total=False):
     """
@@ -354,6 +360,7 @@ class LLMConfigKwargs(TypedDict, total=False):
         url: API 端点地址 / API endpoint URL (default: "http://127.0.0.1:8080/v1/chat/completions")
         language: Prompt 语言 / Prompt language, "zh" or "en" (default: "zh")
     """
+
     model: str
     temperature: float
     max_tokens: int
@@ -376,6 +383,7 @@ class LLMConfig:
         base = LLMConfig(model="qwen2.5-7b", url="http://localhost:8080/v1/chat/completions")
         streaming = base(stream=True)   # Derive a new config with streaming enabled / 派生一个开启流式的新配置
     """
+
     def __init__(self, **kwargs: Unpack[LLMConfigKwargs]):
         """
         初始化 LLM 配置 / Initialize LLM configuration.
@@ -385,7 +393,7 @@ class LLMConfig:
         """
         self.config: Dict[str, Any] = kwargs or {}
 
-    def __call__(self, **kwargs: Unpack[LLMConfigKwargs]) -> 'LLMConfig':
+    def __call__(self, **kwargs: Unpack[LLMConfigKwargs]) -> "LLMConfig":
         """
         创建派生配置副本，安全覆盖指定属性 / Create a derived config copy with safe property override.
 
@@ -419,6 +427,7 @@ class LLMConfig:
 # ─────────────────────────────────────────────
 # llm_call — OpenAI 兼容 HTTP 调用 / OpenAI-compatible HTTP call
 # ─────────────────────────────────────────────
+
 
 def _is_function_body_pass(func) -> bool:
     """
@@ -494,7 +503,7 @@ def llm_call(
     config = {}
 
     if llm_config is not None:
-        if hasattr(llm_config, 'get_dict'):
+        if hasattr(llm_config, "get_dict"):
             config.update(llm_config.get_dict())
         elif isinstance(llm_config, dict):
             config.update(llm_config)
@@ -525,9 +534,7 @@ def llm_call(
     if stream:
         data["stream"] = True
 
-    req = urllib.request.Request(
-        url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST"
-    )
+    req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
 
     max_retries = 3
     for attempt in range(max_retries):
@@ -535,6 +542,7 @@ def llm_call(
             response = urllib.request.urlopen(req, timeout=120)
 
             if stream:
+
                 def event_generator():
                     with response:
                         for line in response:
@@ -550,6 +558,7 @@ def llm_call(
                                         yield content
                                 except Exception:
                                     pass
+
                 return event_generator()
             else:
                 with response:
@@ -561,8 +570,10 @@ def llm_call(
                         return f"[LLM Client Error]: Unrecognized response format - {result}"
 
         except urllib.error.URLError as e:
-            wait_time = 2 ** attempt
-            logger.warning(f"Local LLM API request failed (Attempt {attempt + 1}/{max_retries}): {e}. Retrying in {wait_time}s...")
+            wait_time = 2**attempt
+            logger.warning(
+                f"Local LLM API request failed (Attempt {attempt + 1}/{max_retries}): {e}. Retrying in {wait_time}s..."
+            )
             time.sleep(wait_time)
         except Exception as e:
             logger.error(f"Unexpected error during API call: {e}")
@@ -605,14 +616,14 @@ def _inject_docstrings_on_exit():
             nodes: (函数对象, 元数据字典, 签名) 的列表 / List of (func, meta_dict, signature) tuples
         """
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 source_lines = f.readlines()
-            tree = ast.parse(''.join(source_lines))
+            tree = ast.parse("".join(source_lines))
             docstring_ranges = {}
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef):
                     doc = ast.get_docstring(node)
-                    if doc and 'AACF' in doc:
+                    if doc and "AACF" in doc:
                         expr_node = node.body[0]
                         docstring_ranges[node.name] = (expr_node.lineno, expr_node.end_lineno)
         except Exception:
@@ -620,8 +631,8 @@ def _inject_docstrings_on_exit():
 
         funcs_to_inject = []
         for func, meta, sig in nodes:
-            doc = getattr(func, '__doc__', None)
-            if doc and 'AACF' not in doc:
+            doc = getattr(func, "__doc__", None)
+            if doc and "AACF" not in doc:
                 continue
             try:
                 _, start_lineno = inspect.getsourcelines(func)
@@ -638,7 +649,7 @@ def _inject_docstrings_on_exit():
             name = func.__name__
             if name in docstring_ranges:
                 start, end = docstring_ranges[name]
-                del source_lines[start - 1:end]
+                del source_lines[start - 1 : end]
 
             idx = start_lineno - 1
             paren_count = 0
@@ -647,11 +658,11 @@ def _inject_docstrings_on_exit():
             def_indent = 0
             for i in range(idx, len(source_lines)):
                 line = source_lines[i]
-                if not in_def and line.lstrip().startswith('def '):
+                if not in_def and line.lstrip().startswith("def "):
                     in_def = True
                     def_indent = len(line) - len(line.lstrip())
-                paren_count += line.count('(') - line.count(')')
-                if in_def and paren_count == 0 and ':' in line:
+                paren_count += line.count("(") - line.count(")")
+                if in_def and paren_count == 0 and ":" in line:
                     colon_idx = i
                     break
 
@@ -662,25 +673,25 @@ def _inject_docstrings_on_exit():
 
             docstring_lines = [
                 f'{indent_str}"""\n',
-                f'{indent_str} 【AACF 智能节点 / Smart Node】: {who}\n',
-                f'{indent_str}🎯 核心任务 / Core Task: {what}\n',
-                f'{indent_str} 执行环境 / Environment: {where}\n',
+                f"{indent_str} 【AACF 智能节点 / Smart Node】: {who}\n",
+                f"{indent_str}🎯 核心任务 / Core Task: {what}\n",
+                f"{indent_str} 执行环境 / Environment: {where}\n",
                 f'{indent_str}"""\n',
             ]
 
             line = source_lines[colon_idx]
-            colon_pos = line.find(':', line.rfind(')'))
+            colon_pos = line.find(":", line.rfind(")"))
             if colon_pos != -1:
-                before_colon = line[:colon_pos + 1]
-                after_colon = line[colon_pos + 1:].strip()
-                source_lines[colon_idx] = before_colon + '\n'
+                before_colon = line[: colon_pos + 1]
+                after_colon = line[colon_pos + 1 :].strip()
+                source_lines[colon_idx] = before_colon + "\n"
                 if after_colon:
-                    docstring_lines.append(f'{indent_str}{after_colon}\n')
+                    docstring_lines.append(f"{indent_str}{after_colon}\n")
 
-            source_lines = source_lines[:colon_idx + 1] + docstring_lines + source_lines[colon_idx + 1:]
+            source_lines = source_lines[: colon_idx + 1] + docstring_lines + source_lines[colon_idx + 1 :]
 
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.writelines(source_lines)
         except Exception as e:
             print(f"Failed to write injected file {filepath}: {e}")
@@ -692,6 +703,7 @@ def _inject_docstrings_on_exit():
 # ────────────────────────────────────────────
 # AACF — 应用注册表 (Flask-style) / App registry
 # ─────────────────────────────────────────────
+
 
 class AACF:
     """
@@ -820,6 +832,7 @@ class AACF:
             装饰后的代理函数，入参不变，输出为 LLM 回复（``str`` 或 ``Generator``）/
             Decorated proxy function; same inputs, output is LLM response (``str`` or ``Generator``)
         """
+
         def decorator(func):
             sig = inspect.signature(func)
 
@@ -853,14 +866,16 @@ class AACF:
                 final_config = call_llm_config or func_llm_config or self.config
 
                 lang = "zh"
-                if final_config and hasattr(final_config, 'get_language'):
+                if final_config and hasattr(final_config, "get_language"):
                     lang = final_config.get_language()
                 elif final_config and isinstance(final_config, dict):
                     lang = final_config.get("language", "zh")
 
                 tpl = PROMPT_TEMPLATES.get(lang, PROMPT_TEMPLATES["zh"])
 
-                prompt = tpl["role"].format(who=who or "AI Assistant", where=where or "workspace", what=what or "helpful assistant")
+                prompt = tpl["role"].format(
+                    who=who or "AI Assistant", where=where or "workspace", what=what or "helpful assistant"
+                )
                 if why:
                     prompt += tpl["intent"].format(why=why)
                 if how:
@@ -869,9 +884,7 @@ class AACF:
                 module_str = ""
                 if module:
                     if isinstance(module, list):
-                        module_str = ", ".join(
-                            m.__name__ if hasattr(m, '__name__') else str(m) for m in module
-                        )
+                        module_str = ", ".join(m.__name__ if hasattr(m, "__name__") else str(m) for m in module)
                     else:
                         module_str = str(module)
 
@@ -910,12 +923,21 @@ class AACF:
             # 缓存配置存入元数据，供管道执行时使用
             # Cache config stored in metadata for pipeline execution
             wrapper.__aacf_meta__ = {
-                "who": who, "what": what, "where": where, "why": why,
-                "how": how, "module": module, "out": out,
-                "stream": stream, "format": format,
-                "cache_enabled": cache_enabled, "cache_ttl": cache_ttl,
-                "max_retries": max_retries, "retry_delay": retry_delay,
-                "timeout": timeout, "branches": branches,
+                "who": who,
+                "what": what,
+                "where": where,
+                "why": why,
+                "how": how,
+                "module": module,
+                "out": out,
+                "stream": stream,
+                "format": format,
+                "cache_enabled": cache_enabled,
+                "cache_ttl": cache_ttl,
+                "max_retries": max_retries,
+                "retry_delay": retry_delay,
+                "timeout": timeout,
+                "branches": branches,
             }
 
             filepath = inspect.getsourcefile(func)
@@ -935,6 +957,7 @@ class AACF:
             self._wrappers[func.__name__] = wrapper
 
             return wrapper
+
         return decorator
 
     def compile(self) -> ExecutionPlanner:
@@ -1073,7 +1096,7 @@ class AACF:
             # If global node_config is provided, it overrides node-level config
             final_config = node_config or node_atomic_config
 
-            atomic_node = scheduler.add_node(
+            scheduler.add_node(
                 name=node_name,
                 func=wrapper,
                 config=final_config,
@@ -1171,7 +1194,4 @@ class AACF:
         """
         if not self._compiled:
             return {}
-        return {
-            name: info.status
-            for name, info in self._compiler.nodes.items()
-        }
+        return {name: info.status for name, info in self._compiler.nodes.items()}

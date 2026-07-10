@@ -4,16 +4,17 @@
 Tests for compiler module (DependencyAnalyzer, ExecutionPlanner, AtomicNode, AtomicScheduler)
 编译器模块测试（依赖分析、执行计划、原子节点、原子调度器）
 """
+
 import pytest
+
 from aacf.compiler import (
-    DependencyAnalyzer,
-    ExecutionPlanner,
-    NodeStatus,
     AtomicNode,
     AtomicNodeConfig,
     AtomicScheduler,
+    DependencyAnalyzer,
+    ExecutionPlanner,
+    NodeStatus,
 )
-
 
 # ─── DependencyAnalyzer 测试 ───
 
@@ -31,6 +32,7 @@ class TestDependencyAnalyzer:
 
     def test_register_node_auto_extract_params(self):
         """测试从函数自动提取参数"""
+
         def my_func(text: str, count: int) -> str:
             pass
 
@@ -97,6 +99,7 @@ class TestDependencyAnalyzer:
     def test_circular_dependency_raises(self):
         """测试循环依赖抛出异常"""
         from aacf.compiler import CircularDependencyError
+
         analyzer = DependencyAnalyzer()
         analyzer.register_node("a", params=["b"])
         analyzer.register_node("b", params=["a"])
@@ -243,6 +246,7 @@ class TestAtomicNode:
 
     def test_execute_all_retries_fail(self):
         """测试所有重试都失败"""
+
         def always_fail():
             raise ValueError("permanent error")
 
@@ -394,6 +398,7 @@ class TestAtomicScheduler:
     def test_run_all_failure_blocks(self):
         """测试失败节点阻塞下游"""
         from aacf.compiler import PipelineError
+
         def fail():
             raise ValueError("boom")
 

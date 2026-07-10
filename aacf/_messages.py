@@ -28,7 +28,7 @@ PROMPT_TEMPLATES = {
         "routing_header": "\n【重要：智能路由分发模式】\n",
         "routing_modules": "你有权调用的下级专业子模块/节点有：{modules}\n",
         "routing_instruction": "请深入分析用户的意图，自主判断应该去调用上述哪个子节点来完成任务。\n",
-        "routing_format": '你只需要输出一个纯 JSON 对象，格式为：\n',
+        "routing_format": "你只需要输出一个纯 JSON 对象，格式为：\n",
         "routing_example": '{"target_node": "节点名称", "reason": "调用原因", "inputs": {"参数名": "参数值"}}\n',
         "routing_fallback": "如果你认为不需要调用任何子模块，请直接完成用户的需求。\n\n",
         "output_request": "请根据输入内容，按照输出要求生成内容。\n",
@@ -41,7 +41,7 @@ PROMPT_TEMPLATES = {
         "routing_header": "\n[IMPORTANT: Intelligent Routing Mode]\n",
         "routing_modules": "You have access to the following specialized sub-modules/nodes: {modules}\n",
         "routing_instruction": "Please analyze the user's intent deeply and autonomously determine which sub-node to invoke.\n",
-        "routing_format": 'Output only a pure JSON object in this format:\n',
+        "routing_format": "Output only a pure JSON object in this format:\n",
         "routing_example": '{"target_node": "node_name", "reason": "reason_for_call", "inputs": {"param_name": "param_value"}}\n',
         "routing_fallback": "If you determine no sub-module is needed, please fulfill the user's request directly.\n\n",
         "output_request": "Please generate content based on the input according to the output requirements.\n",
@@ -56,14 +56,14 @@ PROMPT_TEMPLATES = {
 
 DOCSTRING_TEMPLATES = {
     "zh": {
-        "header": '🤖 【AACF 智能节点】: {who}\n',
-        "task": ' 核心任务: {what}\n',
-        "env": '📍 执行环境: {where}\n',
+        "header": "🤖 【AACF 智能节点】: {who}\n",
+        "task": " 核心任务: {what}\n",
+        "env": "📍 执行环境: {where}\n",
     },
     "en": {
-        "header": '🤖 [AACF Smart Node]: {who}\n',
-        "task": '🎯 Core Task: {what}\n',
-        "env": '📍 Environment: {where}\n',
+        "header": "🤖 [AACF Smart Node]: {who}\n",
+        "task": "🎯 Core Task: {what}\n",
+        "env": "📍 Environment: {where}\n",
     },
 }
 
@@ -131,6 +131,7 @@ CLI_MESSAGES = {
 # ────────────────────────────────────────────────────────────
 # Helper Functions / 辅助函数
 # ────────────────────────────────────────────────────────────
+
 
 def get_template(lang: str, category: str, key: str) -> str:
     """

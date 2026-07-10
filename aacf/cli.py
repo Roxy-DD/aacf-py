@@ -6,6 +6,7 @@ AACF CLI — 命令行工具 / Command Line Interface
 提供 aacf init / run / sync / watch / doc 等 CLI 子命令。
 Provides CLI subcommands: init / run / sync / watch / doc.
 """
+
 import ast
 import importlib.util
 import inspect
@@ -14,7 +15,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -44,6 +44,7 @@ console = Console()
 # Docstring 注入工具（供 sync / watch 使用）/ Docstring injection tool (for sync/watch)
 # ────────────────────────────────────────────
 
+
 def inject_docstrings_for_file(filepath: str) -> bool:
     """
     通过反射读取 Python 文件中的 @app.node 节点，并将 Docstring 注入到源码中。
@@ -58,6 +59,7 @@ def inject_docstrings_for_file(filepath: str) -> bool:
     Returns:
         True 如果成功注入 / True if injection succeeded, False otherwise
     """
+
     def _inject_docstrings_to_py(filepath, nodes):
         """
         将 docstring 注入到单个 Python 文件中 / Inject docstrings into a single Python file.
@@ -70,14 +72,14 @@ def inject_docstrings_for_file(filepath: str) -> bool:
             True 如果实际修改了文件 / True if the file was actually modified
         """
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 source_lines = f.readlines()
-            tree = ast.parse(''.join(source_lines))
+            tree = ast.parse("".join(source_lines))
             docstring_ranges = {}
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef):
                     doc = ast.get_docstring(node)
-                    if doc and 'AACF' in doc:
+                    if doc and "AACF" in doc:
                         expr_node = node.body[0]
                         docstring_ranges[node.name] = (expr_node.lineno, expr_node.end_lineno)
         except Exception:
@@ -105,7 +107,7 @@ def inject_docstrings_for_file(filepath: str) -> bool:
             name = func.__name__
             if name in docstring_ranges:
                 start, end = docstring_ranges[name]
-                del source_lines[start - 1:end]
+                del source_lines[start - 1 : end]
 
             idx = start_lineno - 1
             paren_count = 0
@@ -114,11 +116,11 @@ def inject_docstrings_for_file(filepath: str) -> bool:
             def_indent = 0
             for i in range(idx, len(source_lines)):
                 line = source_lines[i]
-                if not in_def and line.lstrip().startswith('def '):
+                if not in_def and line.lstrip().startswith("def "):
                     in_def = True
                     def_indent = len(line) - len(line.lstrip())
-                paren_count += line.count('(') - line.count(')')
-                if in_def and paren_count == 0 and ':' in line:
+                paren_count += line.count("(") - line.count(")")
+                if in_def and paren_count == 0 and ":" in line:
                     colon_idx = i
                     break
 
@@ -129,32 +131,32 @@ def inject_docstrings_for_file(filepath: str) -> bool:
 
             docstring_lines = [
                 f'{indent_str}"""\n',
-                f'{indent_str}🤖 【AACF 智能节点 / Smart Node】: {who}\n',
-                f'{indent_str}🎯 核心任务 / Core Task: {what}\n',
-                f'{indent_str}📍 执行环境 / Environment: {where}\n',
+                f"{indent_str}🤖 【AACF 智能节点 / Smart Node】: {who}\n",
+                f"{indent_str}🎯 核心任务 / Core Task: {what}\n",
+                f"{indent_str}📍 执行环境 / Environment: {where}\n",
                 f'{indent_str}"""\n',
             ]
 
             line = source_lines[colon_idx]
-            colon_pos = line.find(':', line.rfind(')'))
+            colon_pos = line.find(":", line.rfind(")"))
             if colon_pos != -1:
-                before_colon = line[:colon_pos + 1]
-                after_colon = line[colon_pos + 1:].strip()
-                source_lines[colon_idx] = before_colon + '\n'
+                before_colon = line[: colon_pos + 1]
+                after_colon = line[colon_pos + 1 :].strip()
+                source_lines[colon_idx] = before_colon + "\n"
                 if after_colon:
-                    docstring_lines.append(f'{indent_str}{after_colon}\n')
+                    docstring_lines.append(f"{indent_str}{after_colon}\n")
 
-            source_lines = source_lines[:colon_idx + 1] + docstring_lines + source_lines[colon_idx + 1:]
+            source_lines = source_lines[: colon_idx + 1] + docstring_lines + source_lines[colon_idx + 1 :]
 
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.writelines(source_lines)
             return True
         except Exception:
             return False
 
     target_path = Path(filepath).resolve()
-    if not target_path.exists() or target_path.suffix != '.py':
+    if not target_path.exists() or target_path.suffix != ".py":
         return False
 
     module_name = target_path.stem
@@ -178,7 +180,7 @@ def inject_docstrings_for_file(filepath: str) -> bool:
     has_nodes = False
     nodes = []
     for name, obj in inspect.getmembers(module):
-        if inspect.isfunction(obj) and hasattr(obj, '__aacf_meta__'):
+        if inspect.isfunction(obj) and hasattr(obj, "__aacf_meta__"):
             # 仅处理定义在当前文件中的函数，跳过从其他文件导入的函数
             # Only process functions defined in the current file, skip imported ones
             # 使用 inspect.unwrap 追溯 @wraps 包装链，获取原始函数的源文件
@@ -205,16 +207,19 @@ def inject_docstrings_for_file(filepath: str) -> bool:
 # CLI Commands / 命令行命令
 # ─────────────────────────────────────────────
 
+
 @app.command()
 def init(
     project_name: str = typer.Argument(..., help="The name of your new AACF project / 新项目名称"),
 ):
     """Initialize a new AACF project with the recommended directory structure.
     初始化一个新的 AACF 项目，包含推荐的目录结构。"""
-    console.print(Panel.fit(
-        f"[bold blue]Initializing AACF Project / 初始化项目:[/] [green]{project_name}[/]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold blue]Initializing AACF Project / 初始化项目:[/] [green]{project_name}[/]",
+            border_style="blue",
+        )
+    )
     project_dir = Path.cwd() / project_name
     if project_dir.exists():
         console.print(f"[bold red]✖[/] Directory '{project_name}' already exists / 目录 '{project_name}' 已存在。")
@@ -228,14 +233,14 @@ def init(
         # 创建 main.py 模板 / Create main.py template
         main_py = project_dir / "main.py"
         main_py.write_text(
-            'from aacf import AACF, LLMConfig\n\n'
-            'app = AACF(__name__, config=LLMConfig(\n'
+            "from aacf import AACF, LLMConfig\n\n"
+            "app = AACF(__name__, config=LLMConfig(\n"
             '    model="qwen2.5-7b-instruct",\n'
             '    url="http://127.0.0.1:8080/v1/chat/completions",\n'
-            '))\n\n\n'
+            "))\n\n\n"
             '@app.node("hello").who("助手").what("打招呼").build()\n'
-            'def hello(name: str):\n'
-            '    pass\n\n\n'
+            "def hello(name: str):\n"
+            "    pass\n\n\n"
             'if __name__ == "__main__":\n'
             '    print(hello(name="World"))\n',
             encoding="utf-8",
@@ -283,7 +288,7 @@ def sync(
 
     files_to_scan = []
     if target_path.is_file():
-        if target_path.suffix == '.py':
+        if target_path.suffix == ".py":
             files_to_scan.append(target_path)
     else:
         files_to_scan = list(target_path.rglob("*.py"))
@@ -297,8 +302,12 @@ def sync(
             progress.advance(task)
 
     if count > 0:
-        console.print(f"[bold green]✔[/] Successfully injected docstrings for [bold]{count}[/] files / 成功注入 {count} 个文件。")
-        console.print("[dim]Your IDE (e.g., Pylance) will now show perfect docstrings and type hints. / IDE 现在将显示完整的文档和类型提示。[/]")
+        console.print(
+            f"[bold green]✔[/] Successfully injected docstrings for [bold]{count}[/] files / 成功注入 {count} 个文件。"
+        )
+        console.print(
+            "[dim]Your IDE (e.g., Pylance) will now show perfect docstrings and type hints. / IDE 现在将显示完整的文档和类型提示。[/]"
+        )
     else:
         console.print("[bold yellow]ℹ[/] No @app.node functions found to sync / 未找到需要同步的 @app.node 函数。")
 
@@ -315,14 +324,16 @@ def doc(
     console.print("[dim]Press Ctrl+C to stop / 按 Ctrl+C 停止。[/]")
 
     try:
-        import pdoc  # type: ignore
+        import pdoc  # noqa: F401  # type: ignore
     except ImportError:
-        console.print("[bold red]✖ pdoc is not installed. Please run `pip install pdoc`. / pdoc 未安装，请运行 `pip install pdoc`。[/]")
+        console.print(
+            "[bold red]✖ pdoc is not installed. Please run `pip install pdoc`. / pdoc 未安装，请运行 `pip install pdoc`。[/]"
+        )
         raise typer.Exit(code=1)
 
     try:
-        import webbrowser
         import threading
+
         from pdoc.web import DocServer, open_browser
 
         def launch():
@@ -355,7 +366,7 @@ def watch(
 
     def get_py_files():
         if target_path.is_file():
-            return [target_path] if target_path.suffix == '.py' else []
+            return [target_path] if target_path.suffix == ".py" else []
         return list(target_path.rglob("*.py"))
 
     for py_file in get_py_files():
@@ -383,13 +394,17 @@ def watch(
                     pass
 
             if changed_files:
-                console.print(f"\n[bold cyan]Changes detected in {len(changed_files)} file(s). Syncing... / 检测到 {len(changed_files)} 个文件变化，正在同步...[/]")
+                console.print(
+                    f"\n[bold cyan]Changes detected in {len(changed_files)} file(s). Syncing... / 检测到 {len(changed_files)} 个文件变化，正在同步...[/]"
+                )
                 count = 0
                 for py_file in changed_files:
                     if inject_docstrings_for_file(str(py_file)):
                         count += 1
                 if count > 0:
-                    console.print(f"[bold green]✔[/] Injected docstrings for [bold]{count}[/] file(s) / 已注入 {count} 个文件。")
+                    console.print(
+                        f"[bold green]✔[/] Injected docstrings for [bold]{count}[/] file(s) / 已注入 {count} 个文件。"
+                    )
                     # 注入后更新 mtime，避免自身写入触发下一轮检测（防止死循环）
                     # Update mtime after injection to prevent self-write from triggering next detection
                     for py_file in changed_files:

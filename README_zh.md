@@ -23,7 +23,7 @@ app = AACF(__name__, config=LLMConfig(
     url="http://127.0.0.1:8080/v1/chat/completions",
 ))
 
-@app.node(who="Translator", what="Translate Chinese to English")
+@app.node("translate").who("Translator").what("Translate Chinese to English")
 def translate(text: str):
     pass
 
@@ -68,16 +68,15 @@ app = AACF(__name__, config=LLMConfig(
     language="zh",  # "zh" 或 "en"
 ))
 
-@app.node(who="Title Writer", what="Generate 3 article titles for a topic", stream=True)
+@app.node("title_generator").who("Title Writer").what("Generate 3 article titles for a topic").stream(True)
 def title_generator(topic: str):
     pass
 
-@app.node(who="Article Writer", what="Write a 200-word article from a title")
+@app.node("article_writer").who("Article Writer").what("Write a 200-word article from a title")
 def article_writer(title: str):
     pass
 
-@app.node(who="Content Director", what="Route requests to the right node",
-          module=[title_generator, article_writer])
+@app.node("content_router").who("Content Director").what("Route requests to the right node").module([title_generator, article_writer])
 def content_router(user_req: str):
     pass
 ```
@@ -120,7 +119,7 @@ app.get_dependency_graph()       # -> {"article_writer": {"title_generator"}, ..
 ### 流式输出
 
 ```python
-@app.node(who="Writer", what="Write a short story", stream=True)
+@app.node("writer").who("Writer").what("Write a short story").stream(True)
 def writer(topic: str):
     pass
 
@@ -131,7 +130,7 @@ for chunk in writer(topic="Cyberpunk city"):
 ### 结构化 JSON
 
 ```python
-@app.node(who="Data Extractor", what="Extract person info", format="json")
+@app.node("extractor").who("Data Extractor").what("Extract person info").format("json")
 def extractor(text: str):
     pass
 
@@ -142,7 +141,7 @@ data = json.loads(extractor(text="Li Lei, 28, engineer"))
 ### 显式代码覆盖
 
 ```python
-@app.node(who="Calculator", what="Calculate result")
+@app.node("calculator").who("Calculator").what("Calculate result")
 def calculator(expression: str):
     # 你的代码执行而非默认 LLM 调用
     return str(eval(expression))
@@ -171,7 +170,7 @@ visualizer.generate_html("dag.html")  # 交互式 HTML
 ### 缓存
 
 ```python
-@app.node(who="Analyzer", what="Analyze text", cache_enabled=True, cache_ttl=300)
+@app.node("analyzer").who("Analyzer").what("Analyze text").cache(ttl=300)
 def analyzer(text: str):
     pass
 ```

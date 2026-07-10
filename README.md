@@ -23,7 +23,7 @@ app = AACF(__name__, config=LLMConfig(
     url="http://127.0.0.1:8080/v1/chat/completions",
 ))
 
-@app.node(who="Translator", what="Translate Chinese to English")
+@app.node("translate").who("Translator").what("Translate Chinese to English")
 def translate(text: str):
     pass
 
@@ -68,16 +68,15 @@ app = AACF(__name__, config=LLMConfig(
     language="en",  # "zh" or "en"
 ))
 
-@app.node(who="Title Writer", what="Generate 3 article titles for a topic", stream=True)
+@app.node("title_generator").who("Title Writer").what("Generate 3 article titles for a topic").stream(True)
 def title_generator(topic: str):
     pass
 
-@app.node(who="Article Writer", what="Write a 200-word article from a title")
+@app.node("article_writer").who("Article Writer").what("Write a 200-word article from a title")
 def article_writer(title: str):
     pass
 
-@app.node(who="Content Director", what="Route requests to the right node",
-          module=[title_generator, article_writer])
+@app.node("content_router").who("Content Director").what("Route requests to the right node").module([title_generator, article_writer])
 def content_router(user_req: str):
     pass
 ```
@@ -120,7 +119,7 @@ Dependency inference works by matching parameter names to node names. If `articl
 ### Streaming Output
 
 ```python
-@app.node(who="Writer", what="Write a short story", stream=True)
+@app.node("writer").who("Writer").what("Write a short story").stream(True)
 def writer(topic: str):
     pass
 
@@ -131,7 +130,7 @@ for chunk in writer(topic="Cyberpunk city"):
 ### Structured JSON
 
 ```python
-@app.node(who="Data Extractor", what="Extract person info", format="json")
+@app.node("extractor").who("Data Extractor").what("Extract person info").format("json")
 def extractor(text: str):
     pass
 
@@ -142,7 +141,7 @@ data = json.loads(extractor(text="Li Lei, 28, engineer"))
 ### Explicit Code Override
 
 ```python
-@app.node(who="Calculator", what="Calculate result")
+@app.node("calculator").who("Calculator").what("Calculate result")
 def calculator(expression: str):
     # Your code runs instead of the default LLM call
     return str(eval(expression))
@@ -171,7 +170,7 @@ visualizer.generate_html("dag.html")  # Interactive HTML
 ### Caching
 
 ```python
-@app.node(who="Analyzer", what="Analyze text", cache_enabled=True, cache_ttl=300)
+@app.node("analyzer").who("Analyzer").what("Analyze text").cache(ttl=300)
 def analyzer(text: str):
     pass
 ```
@@ -190,27 +189,82 @@ aacf doc aacf --port 8080   # API doc server
 
 ---
 
+## MCP Server
+
+AACF provides an MCP (Model Context Protocol) server for AI-assisted development. AI clients like Claude Desktop can use AACF tools to help you build and manage projects.
+
+```bash
+# Install with MCP support
+pip install aacf[mcp]
+
+# Start MCP server (stdio mode)
+aacf-mcp
+```
+
+**Claude Desktop Configuration** (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "aacf": {
+      "command": "aacf-mcp"
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+
+| Category | Tools |
+|----------|-------|
+| Project | `init_project`, `read_project`, `validate_project` |
+| Nodes | `create_node`, `list_nodes`, `get_node_info`, `configure_node` |
+| Pipeline | `compile_pipeline`, `get_dependency_graph`, `get_execution_order`, `get_parallel_groups`, `run_pipeline` |
+
+---
+
 ## API Reference
 
-### `@app.node()` Parameters
+### `@app.node()` Chainable API
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `who` | `str` | Yes | Agent role |
-| `what` | `str` | Yes | Core task |
-| `where` | `str` | | Business context |
-| `why` | `str` | | Execution intent |
-| `how` | `str \| list` | | Steps or constraints |
-| `module` | `list[Callable]` | | Sub-nodes for smart routing |
-| `out` | `str` | | Output format requirements |
-| `stream` | `bool` | | `True` returns `Generator` |
-| `format` | `str` | | `"json"` enables JSON mode |
-| `branches` | `dict[str, Callable]` | | Conditional branch targets |
-| `cache_enabled` | `bool` | | Enable result caching (default `False`) |
-| `cache_ttl` | `int` | | Cache TTL in seconds (default `0`) |
-| `max_retries` | `int` | | Max retry attempts (default `3`) |
-| `retry_delay` | `float` | | Delay between retries in seconds (default `1.0`) |
-| `timeout` | `int` | | Execution timeout in seconds (default `0`, no timeout) |
+```python
+# Basic usage
+@app.node("name").who("Role").what("Task")
+def my_node(param: str):
+    pass
+
+# Full chainable configuration
+@app.node("name") \
+    .who("Role") \
+    .where("Context") \
+    .what("Task") \
+    .why("Intent") \
+    .how("Steps") \
+    .stream(True) \
+    .format("json") \
+    .cache(ttl=300) \
+    .retry(max_attempts=3, delay=1.0) \
+    .timeout(30)
+def my_node(param: str):
+    pass
+```
+
+### Chainable Methods
+
+| Method | Description |
+|--------|-------------|
+| `.who(role)` | Set agent role |
+| `.where(context)` | Set business context |
+| `.what(task)` | Set core task |
+| `.why(intent)` | Set execution intent |
+| `.how(steps)` | Set steps or constraints |
+| `.module([nodes])` | Set sub-nodes for smart routing |
+| `.out(format)` | Set output format requirements |
+| `.stream(True)` | Enable streaming output |
+| `.format("json")` | Enable JSON mode |
+| `.cache(ttl=300)` | Enable caching with TTL |
+| `.retry(max_attempts=3, delay=1.0)` | Configure retry behavior |
+| `.timeout(30)` | Set execution timeout |
 
 ### `LLMConfig`
 
@@ -240,6 +294,14 @@ aacf/
   cli.py             # CLI commands
   _messages.py       # Bilingual prompt templates
 
+aacf_mcp/            # MCP Server (optional)
+  __init__.py        # Exports: create_server
+  server.py          # FastMCP server with stdio transport
+  tools/
+    nodes.py         # Node management tools
+    pipeline.py      # Pipeline analysis tools
+    project.py       # Project management tools
+
 examples/
   agents.py          # Demo: content creation assistant
   main.py            # Demo: invocation entry point
@@ -253,13 +315,16 @@ examples/
 # From PyPI (recommended)
 pip install aacf
 
+# With MCP server support
+pip install aacf[mcp]
+
 # From source
 git clone https://github.com/Roxy-DD/aacf-py.git
 cd aacf-py
 pip install -e .
 ```
 
-Python >= 3.10. Core dependencies: typer, rich. Optional: pyvis (for visualization).
+Python >= 3.10. Core dependencies: typer, rich. Optional: pyvis (visualization), mcp (MCP server).
 
 ---
 

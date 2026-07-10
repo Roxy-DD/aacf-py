@@ -739,11 +739,13 @@ class AtomicNode:
         func: Any = None,
         config: Optional[AtomicNodeConfig] = None,
         dependencies: Optional[Set[str]] = None,
+        params: Optional[List[str]] = None,
     ):
         self.name = name
         self.func = func
         self.config = config or AtomicNodeConfig()
         self.dependencies = dependencies or set()
+        self.params = params or []
         self.status = NodeStatus.PENDING
         self.result: Any = None
         self.error: Optional[str] = None
@@ -862,6 +864,7 @@ class AtomicScheduler:
         func: Any = None,
         config: Optional[AtomicNodeConfig] = None,
         dependencies: Optional[Set[str]] = None,
+        params: Optional[List[str]] = None,
     ) -> AtomicNode:
         """
         Add an atomic node to the scheduler.
@@ -872,11 +875,12 @@ class AtomicScheduler:
             func: Function to execute / 要执行的函数
             config: Execution configuration / 执行配置
             dependencies: Set of node names this node depends on / 依赖的节点名集合
+            params: Function parameter names / 函数参数名列表
 
         Returns:
             The created AtomicNode / 创建的 AtomicNode
         """
-        node = AtomicNode(name, func, config, dependencies)
+        node = AtomicNode(name, func, config, dependencies, params)
         self.nodes[name] = node
         return node
 
@@ -900,6 +904,27 @@ class AtomicScheduler:
                 ready.append(node)
         return ready
 
+    def _can_execute(self, node: AtomicNode, inputs: Dict[str, Dict[str, Any]]) -> bool:
+        """
+        Check if a node's parameters can be satisfied from inputs or dependency results.
+        检查节点的参数是否能从输入或依赖结果中满足。
+
+        Args:
+            node: The atomic node to check / 要检查的原子节点
+            inputs: Per-node input data / 每个节点的输入数据
+
+        Returns:
+            True if all required parameters can be provided / 如果所有必需参数都能提供则为 True
+        """
+        if not node.params:
+            return True
+        for param in node.params:
+            has_from_input = param in inputs.get(node.name, {})
+            has_from_dep = param in self._results
+            if not has_from_input and not has_from_dep:
+                return False
+        return True
+
     def run_all(
         self,
         inputs: Optional[Dict[str, Dict[str, Any]]] = None,
@@ -907,6 +932,9 @@ class AtomicScheduler:
         """
         Execute all nodes in dependency order (serial execution).
         按依赖顺序执行所有节点（串行执行）。
+
+        Nodes whose parameters cannot be satisfied are skipped.
+        参数无法满足的节点会被跳过。
 
         Args:
             inputs: Per-node input data / 每个节点的输入数据
@@ -920,7 +948,7 @@ class AtomicScheduler:
         inputs = inputs or {}
         self._results = {}
 
-        while len(self._results) < len(self.nodes):
+        while len(self._results) + len([n for n in self.nodes.values() if n.status == NodeStatus.SKIPPED]) < len(self.nodes):
             ready = self.get_ready_nodes()
             if not ready:
                 # Check for failed nodes blocking progress
@@ -933,6 +961,11 @@ class AtomicScheduler:
                 break
 
             for node in ready:
+                # Skip nodes whose parameters cannot be satisfied
+                if not self._can_execute(node, inputs):
+                    node.status = NodeStatus.SKIPPED
+                    continue
+
                 node_input = inputs.get(node.name, {})
                 # Inject dependency results into input
                 for dep_name in node.dependencies:
@@ -1003,6 +1036,12 @@ class AtomicScheduler:
                 futures = {}
                 for node_name in group:
                     node = self.nodes[node_name]
+                    
+                    # Skip nodes whose parameters cannot be satisfied
+                    if not self._can_execute(node, inputs):
+                        node.status = NodeStatus.SKIPPED
+                        continue
+
                     node_input = inputs.get(node_name, {})
 
                     # Inject dependency results

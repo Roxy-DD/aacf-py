@@ -65,6 +65,9 @@ def inject_docstrings_for_file(filepath: str) -> bool:
         Args:
             filepath: 目标文件路径 / Target file path
             nodes: (函数对象, 元数据字典, 签名) 的列表 / List of (func, meta_dict, signature) tuples
+
+        Returns:
+            True 如果实际修改了文件 / True if the file was actually modified
         """
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
@@ -78,12 +81,14 @@ def inject_docstrings_for_file(filepath: str) -> bool:
                         expr_node = node.body[0]
                         docstring_ranges[node.name] = (expr_node.lineno, expr_node.end_lineno)
         except Exception:
-            return
+            return False
 
         funcs_to_inject = []
         for func, meta, sig in nodes:
-            doc = getattr(func, '__doc__', None)
-            if doc and 'AACF' not in doc:
+            name = func.__name__
+            # 如果源码中已有 AACF docstring，跳过（幂等性）
+            # If source already has AACF docstring, skip (idempotent)
+            if name in docstring_ranges:
                 continue
             try:
                 _, start_lineno = inspect.getsourcelines(func)
@@ -92,7 +97,7 @@ def inject_docstrings_for_file(filepath: str) -> bool:
             funcs_to_inject.append((start_lineno, func, meta))
 
         if not funcs_to_inject:
-            return
+            return False
 
         funcs_to_inject.sort(key=lambda x: x[0], reverse=True)
 
@@ -144,8 +149,9 @@ def inject_docstrings_for_file(filepath: str) -> bool:
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.writelines(source_lines)
+            return True
         except Exception:
-            pass
+            return False
 
     target_path = Path(filepath).resolve()
     if not target_path.exists() or target_path.suffix != '.py':
@@ -173,6 +179,17 @@ def inject_docstrings_for_file(filepath: str) -> bool:
     nodes = []
     for name, obj in inspect.getmembers(module):
         if inspect.isfunction(obj) and hasattr(obj, '__aacf_meta__'):
+            # 仅处理定义在当前文件中的函数，跳过从其他文件导入的函数
+            # Only process functions defined in the current file, skip imported ones
+            # 使用 inspect.unwrap 追溯 @wraps 包装链，获取原始函数的源文件
+            # Use inspect.unwrap to follow @wraps chain to get original function's source file
+            try:
+                original_func = inspect.unwrap(obj)
+                func_file = inspect.getsourcefile(original_func)
+                if func_file and Path(func_file).resolve() != target_path:
+                    continue
+            except (OSError, TypeError):
+                continue
             has_nodes = True
             meta = obj.__aacf_meta__
             sig = inspect.signature(obj)
@@ -181,8 +198,7 @@ def inject_docstrings_for_file(filepath: str) -> bool:
     if not has_nodes:
         return False
 
-    _inject_docstrings_to_py(filepath, nodes)
-    return True
+    return _inject_docstrings_to_py(filepath, nodes) or False
 
 
 # ────────────────────────────────────────────
@@ -199,9 +215,44 @@ def init(
         f"[bold blue]Initializing AACF Project / 初始化项目:[/] [green]{project_name}[/]",
         border_style="blue",
     ))
+    project_dir = Path.cwd() / project_name
+    if project_dir.exists():
+        console.print(f"[bold red]✖[/] Directory '{project_name}' already exists / 目录 '{project_name}' 已存在。")
+        raise typer.Exit(code=1)
+
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
         progress.add_task(description="Creating project structure / 创建项目结构...", total=None)
-        time.sleep(1.0)
+        # 创建项目目录 / Create project directory
+        project_dir.mkdir(parents=True)
+        (project_dir / "src").mkdir()
+        # 创建 main.py 模板 / Create main.py template
+        main_py = project_dir / "main.py"
+        main_py.write_text(
+            'from aacf import AACF, LLMConfig\n\n'
+            'app = AACF(__name__, config=LLMConfig(\n'
+            '    model="qwen2.5-7b-instruct",\n'
+            '    url="http://127.0.0.1:8080/v1/chat/completions",\n'
+            '))\n\n\n'
+            '@app.node("hello").who("助手").what("打招呼").build()\n'
+            'def hello(name: str):\n'
+            '    pass\n\n\n'
+            'if __name__ == "__main__":\n'
+            '    print(hello(name="World"))\n',
+            encoding="utf-8",
+        )
+        # 创建 __init__.py / Create __init__.py
+        (project_dir / "src" / "__init__.py").write_text("", encoding="utf-8")
+        # 初始化虚拟环境 / Initialize virtual environment
+        try:
+            subprocess.check_call(
+                [sys.executable, "-m", "venv", ".venv"],
+                cwd=str(project_dir),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except (subprocess.CalledProcessError, Exception):
+            pass  # 虚拟环境创建失败不影响项目初始化 / venv failure is non-fatal
+
     console.print("[bold green]✔[/] Project structure created / 项目结构已创建。")
     console.print("[bold green]✔[/] Virtual environment initialized / 虚拟环境已初始化。")
     console.print(f"\n[bold]Next steps / 下一步:[/]\n  cd {project_name}\n  aacf run main.py")
@@ -260,7 +311,7 @@ def doc(
     """Zero-config API documentation server. (Inspired by Rust's cargo doc)
     零配置 API 文档服务器。（灵感来自 Rust 的 cargo doc）"""
     console.print(f"[bold magenta]▶ Starting AACF Doc Server for / 启动文档服务器:[/] {module}")
-    console.print(f"[dim]Serving on / 服务地址: http://localhost:{port}[/]")
+    console.print(f"[dim]Serving on / 服务地址: http://127.0.0.1:{port}[/]")
     console.print("[dim]Press Ctrl+C to stop / 按 Ctrl+C 停止。[/]")
 
     try:
@@ -272,13 +323,16 @@ def doc(
     try:
         import webbrowser
         import threading
+        from pdoc.web import DocServer, open_browser
 
-        def open_browser():
+        def launch():
             time.sleep(1)
-            webbrowser.open(f"http://localhost:{port}")
+            open_browser(f"http://127.0.0.1:{port}")
 
-        threading.Thread(target=open_browser, daemon=True).start()
-        pdoc.pdoc(module, host="localhost", port=port)
+        threading.Thread(target=launch, daemon=True).start()
+        with DocServer(("127.0.0.1", port), [module]) as httpd:
+            console.print(f"[bold green]✔[/] Doc server running / 文档服务器运行中: http://127.0.0.1:{port}")
+            httpd.serve_forever()
     except KeyboardInterrupt:
         console.print("\n[bold green]✔[/] Doc server stopped / 文档服务器已停止。")
     except Exception as e:
@@ -336,6 +390,13 @@ def watch(
                         count += 1
                 if count > 0:
                     console.print(f"[bold green]✔[/] Injected docstrings for [bold]{count}[/] file(s) / 已注入 {count} 个文件。")
+                    # 注入后更新 mtime，避免自身写入触发下一轮检测（防止死循环）
+                    # Update mtime after injection to prevent self-write from triggering next detection
+                    for py_file in changed_files:
+                        try:
+                            last_mtimes[py_file] = os.path.getmtime(py_file)
+                        except OSError:
+                            pass
                 else:
                     console.print("[dim]No @app.node updates required / 无需更新 @app.node。[/]")
 

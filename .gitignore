@@ -18,6 +18,7 @@ typings/
 # IDE
 .vscode/
 .idea/
+.qoder/
 
 # Distribution
 dist/

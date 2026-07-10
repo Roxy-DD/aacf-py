@@ -150,14 +150,10 @@ class DAGVisualizer:
         Returns:
             NodeStatus enum value / NodeStatus 枚举值
         """
-        # Check scheduler first (has most recent status) / 首先检查调度器（有最新状态）
         if self.scheduler and node_name in self.scheduler.nodes:
             return self.scheduler.nodes[node_name].status
-
-        # Then check app compiler / 然后检查应用编译器
         if self.app and node_name in self.app._compiler.nodes:
             return self.app._compiler.nodes[node_name].status
-
         return NodeStatus.PENDING
 
     def _get_node_result(self, node_name: str) -> Optional[Any]:
@@ -171,37 +167,51 @@ class DAGVisualizer:
         Returns:
             Execution result or None / 执行结果或 None
         """
-        # Check scheduler first / 首先检查调度器
         if self.scheduler and node_name in self.scheduler._results:
             return self.scheduler._results[node_name]
-
-        # Then check app compiler / 然后检查应用编译器
         if self.app and node_name in self.app._compiler.nodes:
             return self.app._compiler.nodes[node_name].result
-
         return None
 
-    def _format_result(self, result: Any) -> str:
+    def _build_tooltip_html(self, node_name: str) -> str:
         """
-        Format execution result for display.
-        格式化执行结果以用于显示。
+        Build HTML tooltip content for a node with proper line breaks.
+        为节点构建带正确换行的 HTML 工具提示内容。
 
         Args:
-            result: Execution result / 执行结果
+            node_name: Node name / 节点名
 
         Returns:
-            Formatted string / 格式化字符串
+            HTML string with <br> line breaks / 带 <br> 换行的 HTML 字符串
         """
-        if result is None:
-            return "No result / 无结果"
+        status = self._get_node_status(node_name)
+        result = self._get_node_result(node_name)
 
-        # Truncate long results / 截断长结果
-        result_str = str(result)
-        if len(result_str) > 200:
-            result_str = result_str[:200] + "..."
+        parts = []
+        parts.append(f'<b>Node / 节点:</b> {html.escape(node_name)}')
 
-        # Escape HTML / 转义 HTML
-        return html.escape(result_str)
+        if self.show_status:
+            parts.append(f'<b>Status / 状态:</b> {html.escape(status.value)}')
+
+        # DSL metadata / DSL 元数据
+        if self.app and node_name in self.app._wrappers:
+            wrapper = self.app._wrappers[node_name]
+            meta = wrapper.__aacf_meta__
+            if meta.get("who"):
+                parts.append(f'<b>Who / 角色:</b> {html.escape(meta["who"])}')
+            if meta.get("what"):
+                parts.append(f'<b>What / 任务:</b> {html.escape(meta["what"])}')
+            if meta.get("where"):
+                parts.append(f'<b>Where / 环境:</b> {html.escape(meta["where"])}')
+
+        if self.show_results and result is not None:
+            result_str = str(result)
+            if len(result_str) > 200:
+                result_str = result_str[:200] + "..."
+            parts.append(f'<b>Result / 结果:</b> {html.escape(result_str)}')
+
+        # Use <br> for HTML line breaks / 使用 <br> 实现 HTML 换行
+        return "<br>".join(parts)
 
     def generate_html(self, output_path: str = "dag.html") -> str:
         """
@@ -220,6 +230,11 @@ class DAGVisualizer:
             html_path = visualizer.generate_html("pipeline.html")
             print(f"Visualization saved to: {html_path}")
         """
+        # Build tooltip map for all nodes / 构建所有节点的工具提示映射
+        tooltip_map = {}
+        for node_name in self.analyzer.nodes:
+            tooltip_map[node_name] = self._build_tooltip_html(node_name)
+
         # Create pyvis network / 创建 pyvis 网络
         net = Network(
             width=self.width,
@@ -249,42 +264,17 @@ class DAGVisualizer:
         }
         """)
 
-        # Add nodes / 添加节点
-        for node_name, node_info in self.analyzer.nodes.items():
+        # Add nodes (title is a placeholder; real tooltip rendered via JS events)
+        # 添加节点（title 为占位符；真实工具提示通过 JS 事件渲染）
+        for node_name in self.analyzer.nodes:
             status = self._get_node_status(node_name)
-            result = self._get_node_result(node_name)
-
-            # Build tooltip / 构建工具提示
-            tooltip_parts = [f"<b>Node / 节点:</b> {html.escape(node_name)}"]
-
-            if self.show_status:
-                tooltip_parts.append(f"<b>Status / 状态:</b> {status.value}")
-
-            # Add DSL metadata if available / 添加 DSL 元数据（如果可用）
-            if self.app and node_name in self.app._wrappers:
-                wrapper = self.app._wrappers[node_name]
-                meta = wrapper.__aacf_meta__
-                if meta.get("who"):
-                    tooltip_parts.append(f"<b>Who / 角色:</b> {html.escape(meta['who'])}")
-                if meta.get("what"):
-                    tooltip_parts.append(f"<b>What / 任务:</b> {html.escape(meta['what'])}")
-                if meta.get("where"):
-                    tooltip_parts.append(f"<b>Where / 环境:</b> {html.escape(meta['where'])}")
-
-            if self.show_results and result is not None:
-                tooltip_parts.append(f"<b>Result / 结果:</b><br>{self._format_result(result)}")
-
-            tooltip = "<br>".join(tooltip_parts)
-
-            # Determine node appearance / 确定节点外观
             color = self.STATUS_COLORS.get(status, "#FFA500") if self.show_status else "#FFA500"
             shape = self.STATUS_SHAPES.get(status, "dot")
 
-            # Add node to network / 向网络添加节点
             net.add_node(
                 node_name,
                 label=node_name,
-                title=tooltip,
+                title="",  # Empty to disable vis.js native tooltip; custom HTML tooltip used instead / 空字符串禁用 vis.js 原生工具提示；使用自定义 HTML 工具提示
                 color=color,
                 shape=shape,
                 size=25,
@@ -298,7 +288,6 @@ class DAGVisualizer:
             for node_name, node_info in self.analyzer.nodes.items():
                 for dep_name in node_info.dependencies:
                     if dep_name in self.analyzer.nodes:
-                        # Edge from dependency to dependent / 从依赖到依赖者的边
                         net.add_edge(
                             dep_name,
                             node_name,
@@ -308,10 +297,94 @@ class DAGVisualizer:
                             smooth={"type": "continuous"},
                         )
 
-        # Generate HTML / 生成 HTML
+        # Generate base HTML / 生成基础 HTML
         net.write_html(output_path)
 
+        # Post-process: inject custom HTML tooltip system
+        # 后处理：注入自定义 HTML 工具提示系统
+        self._inject_tooltip_system(output_path, tooltip_map)
+
         return output_path
+
+    def _inject_tooltip_system(self, output_path: str, tooltip_map: Dict[str, str]) -> None:
+        """
+        Inject custom HTML tooltip system into the generated HTML file.
+        Replaces vis.js native tooltip with a custom HTML-rendered tooltip
+        using hoverNode/blurNode events.
+        将自定义 HTML 工具提示系统注入到生成的 HTML 文件中。
+        使用 hoverNode/blurNode 事件替换 vis.js 原生工具提示为自定义 HTML 渲染的工具提示。
+        """
+        with open(output_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Build JS tooltip data object / 构建 JS 工具提示数据对象
+        # Note: tooltip HTML is intentionally NOT html-escaped here because
+        # it will be set via innerHTML (not textContent) for proper rendering.
+        # 注意：这里故意不对 tooltip HTML 做 html.escape，因为它将通过
+        # innerHTML（而非 textContent）设置以正确渲染 HTML 标签。
+        tooltip_js_parts = []
+        for node_name, tooltip_html in tooltip_map.items():
+            # Only escape JS-special chars (backslash, single quote, newlines)
+            # 仅转义 JS 特殊字符（反斜杠、单引号、换行符）
+            safe_html = tooltip_html.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+            tooltip_js_parts.append(f"  '{node_name}': '{safe_html}'")
+        tooltip_data = "{\n" + ",\n".join(tooltip_js_parts) + "\n}"
+
+        # Custom tooltip JS: create a floating div, show on hoverNode, hide on blurNode
+        # 自定义工具提示 JS：创建浮动 div，hoverNode 时显示，blurNode 时隐藏
+        custom_js = f"""
+        // AACF: Custom HTML tooltip system / 自定义 HTML 工具提示系统
+        (function() {{
+            // Hide vis.js native tooltip / 隐藏 vis.js 原生工具提示
+            var style = document.createElement('style');
+            style.textContent = '.vis-tooltip {{ display: none !important; }}';
+            document.head.appendChild(style);
+
+            var tooltipDiv = document.createElement('div');
+            tooltipDiv.id = 'aacf-tooltip';
+            tooltipDiv.style.cssText = 'position:fixed;display:none;background:#fff;border:1px solid #ccc;border-radius:6px;padding:10px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:9999;pointer-events:none;max-width:360px;font-family:arial,sans-serif;';
+            document.body.appendChild(tooltipDiv);
+
+            var tooltipData = {tooltip_data};
+
+            network.on('hoverNode', function(params) {{
+                var nodeId = params.node;
+                if (tooltipData[nodeId]) {{
+                    tooltipDiv.innerHTML = tooltipData[nodeId];
+                    tooltipDiv.style.display = 'block';
+                }}
+            }});
+
+            network.on('blurNode', function(params) {{
+                tooltipDiv.style.display = 'none';
+            }});
+
+            network.on('dragging', function() {{
+                tooltipDiv.style.display = 'none';
+            }});
+
+            document.addEventListener('mousemove', function(e) {{
+                if (tooltipDiv.style.display === 'block') {{
+                    var x = e.clientX + 15;
+                    var y = e.clientY + 15;
+                    // Keep tooltip within viewport / 保持工具提示在视口内
+                    var rect = tooltipDiv.getBoundingClientRect();
+                    if (x + rect.width > window.innerWidth) x = e.clientX - rect.width - 10;
+                    if (y + rect.height > window.innerHeight) y = e.clientY - rect.height - 10;
+                    tooltipDiv.style.left = x + 'px';
+                    tooltipDiv.style.top = y + 'px';
+                }}
+            }});
+        }})();
+        """
+
+        # Insert before the last </script> tag / 在最后一个 </script> 标签前插入
+        last_script_close = content.rfind("</script>")
+        if last_script_close != -1:
+            content = content[:last_script_close] + custom_js + content[last_script_close:]
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(content)
 
     def generate_html_string(self) -> str:
         """
@@ -330,7 +403,6 @@ class DAGVisualizer:
         import tempfile
         import os
 
-        # Create temporary file / 创建临时文件
         with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
             temp_path = f.name
 

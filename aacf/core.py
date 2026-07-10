@@ -288,22 +288,16 @@ class NodeBuilder:
         """
         构建节点装饰器 / Build node decorator.
 
+        如果函数已绑定（通过 __call__），返回装饰后的函数。
+        如果函数未绑定，返回一个装饰器，可用于 @ 语法。
+
+        If function is bound (via __call__), returns the decorated function.
+        If function is not bound, returns a decorator for @ syntax.
+
         Returns:
-            装饰器函数 / Decorator function
-
-        Raises:
-            ValueError: 如果未绑定函数 / If no function is bound
+            装饰器函数或装饰后的函数 / Decorator function or decorated function
         """
-        if self._func is None:
-            raise ValueError(
-                f"No function bound to node '{self._name}'\n"
-                f"节点 '{self._name}' 未绑定函数\n"
-                f"Usage: @app.node('name').who('...').what('...').build()"
-            )
-
-        # 调用旧的装饰器逻辑（保持向后兼容）
-        # Call old decorator logic (maintain backward compatibility)
-        return self._app._create_node_decorator(
+        decorator = self._app._create_node_decorator(
             who=self._who,
             where=self._where,
             what=self._what,
@@ -319,11 +313,17 @@ class NodeBuilder:
             retry_delay=self._retry_delay,
             timeout=self._timeout,
             branches=self._branches,
-        )(self._func)
+        )
+
+        if self._func is not None:
+            return decorator(self._func)
+
+        # Return decorator for @ syntax / 返回装饰器用于 @ 语法
+        return decorator
 
     def __call__(self, func: typing.Callable) -> typing.Callable:
         """
-        作为装饰器使用 / Use as decorator.
+        作为装饰器使用（仅用于 @app.node("name") 无配置场景）/ Use as decorator (only for @app.node("name") without configuration).
 
         Args:
             func: 被装饰的函数 / Function to decorate
@@ -730,19 +730,21 @@ class AACF:
         self._plan = None
         self._wrappers: Dict[str, typing.Callable] = {}
 
-    def node(self, name_or_func=None, **kwargs) -> typing.Union[NodeBuilder, typing.Callable]:
+    def node(self, name: str) -> NodeBuilder:
         """
-        创建节点构建器或装饰器 / Create node builder or decorator.
+        创建节点构建器（链式调用 API）/ Create node builder (chainable API).
 
-        支持两种调用方式 / Supports two calling patterns:
+        统一使用链式调用，IDE 自动补全友好，无需记忆参数名。
+        Uses chainable API exclusively — IDE auto-completion friendly, no need to memorize parameter names.
 
-        1. 链式调用 / Chainable API::
+        Usage::
 
+            # 方式 1：作为装饰器 / As decorator
             @app.node("translator")
             def translator(text: str):
                 pass
 
-            # 或 / Or:
+            # 方式 2：链式配置 / Chainable configuration
             translator = (
                 app.node("translator")
                 .who("翻译员")
@@ -751,32 +753,19 @@ class AACF:
                 .build()
             )
 
-        2. 传统装饰器（向后兼容）/ Traditional decorator (backward compatible)::
-
-            @app.node(who="翻译员", what="翻译文本")
-            def translator(text: str):
-                pass
+            # 方式 3：动态配置 / Dynamic configuration
+            builder = app.node("translator").who("翻译员").what("翻译文本")
+            if need_cache:
+                builder = builder.cache(ttl=300)
+            translator = builder.build()
 
         Args:
-            name_or_func: 节点名称或函数（用于向后兼容）/ Node name or function (for backward compatibility)
-            **kwargs: 装饰器参数（用于向后兼容）/ Decorator parameters (for backward compatibility)
+            name: 节点名称 / Node name
 
         Returns:
-            NodeBuilder（链式调用）或装饰器函数 / NodeBuilder (chainable) or decorator function
+            NodeBuilder 实例 / NodeBuilder instance
         """
-        # 新 API：传入节点名称，返回 NodeBuilder
-        # New API: pass node name, return NodeBuilder
-        if isinstance(name_or_func, str):
-            return NodeBuilder(self, name_or_func)
-
-        # 向后兼容：直接传入函数或参数
-        # Backward compatibility: function or parameters passed directly
-        if callable(name_or_func):
-            # @app.node 直接装饰函数 / @app.node directly decorates function
-            return self._create_node_decorator(**kwargs)(name_or_func)
-
-        # @app.node(who="...", what="...") 形式 / @app.node(who="...", what="...") form
-        return self._create_node_decorator(**kwargs)
+        return NodeBuilder(self, name)
 
     def _create_node_decorator(
         self,
@@ -1089,6 +1078,7 @@ class AACF:
                 func=wrapper,
                 config=final_config,
                 dependencies=dependencies,
+                params=node_info.params,
             )
 
         # Execute pipeline
@@ -1148,6 +1138,7 @@ class AACF:
                 func=wrapper,
                 config=final_config,
                 dependencies=dependencies,
+                params=node_info.params,
             )
 
         return scheduler.run_parallel(inputs=inputs, max_workers=max_workers)

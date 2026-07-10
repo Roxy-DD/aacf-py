@@ -43,11 +43,32 @@ def register_project_tools(mcp):
 
         # Create agents.py
         agents_content = '''# SPDX-License-Identifier: GPL-3.0
-"""AI agent node definitions / AI 智能体节点定义。"""
+"""AI agent node definitions / AI 智能体节点定义。
+
+Use the chainable API to configure nodes:
+使用链式 API 配置节点：
+
+    @app.node("name").who("role").what("task")
+    def my_node(param: str):
+        pass
+
+Available chain methods / 可用链式方法：
+    .who(role)        - Agent role / 智能体角色
+    .what(task)       - Core task / 核心任务
+    .where(context)   - Business context / 业务环境
+    .why(reason)      - Execution intent / 执行意图
+    .how(method)      - Operation method / 操作方法
+    .stream(True)     - Enable streaming / 启用流式输出
+    .format("json")   - JSON output / JSON 输出
+    .out(requirement) - Output format / 输出格式要求
+    .cache(ttl=300)   - Enable cache / 启用缓存
+    .retry(max_attempts=3, delay=1.0) - Retry config / 重试配置
+    .timeout(seconds) - Timeout config / 超时配置
+"""
 
 from aacf import AACF, LLMConfig
 
-
+# ── Initialize App / 初始化应用 ──────────────────────────────────────
 app = AACF(
     __name__,
     config=LLMConfig(
@@ -58,21 +79,46 @@ app = AACF(
 )
 
 
-@app.node("hello").who("助手").what("向用户打招呼")
-def hello(name: str):
+# ── Node Definitions / 节点定义 ──────────────────────────────────────
+
+
+@app.node("greeting").who("友好助手").what("向用户打招呼并回答问题")
+def greeting(name: str):
+    """A simple greeting node. / 简单的问候节点。"""
+    pass
+
+
+@app.node("summary").who("摘要专家").what("根据输入内容生成简洁摘要").cache(ttl=300)
+def summary(greeting: str):
+    """A summary node that depends on greeting (param name matches upstream node).
+    摘要节点，依赖 greeting（参数名匹配上游节点名）。"""
     pass
 '''
         (project_dir / "agents.py").write_text(agents_content, encoding="utf-8")
 
         # Create main.py
         main_content = '''# SPDX-License-Identifier: GPL-3.0
-"""Application entry point / 应用入口文件。"""
+"""Application entry point / 应用入口文件。
 
-from agents import hello
+Demonstrates:
+  1. Calling individual nodes / 调用单个节点
+  2. Pipeline execution with dependency analysis / 带依赖分析的管道执行
+"""
+
+from agents import app, greeting, summary
 
 
 if __name__ == "__main__":
-    print(hello(name="World"))
+    # 1. Call a single node / 调用单个节点
+    print("=== Node Call / 节点调用 ===")
+    print(greeting(name="World"))
+    print()
+
+    # 2. Run pipeline (auto-resolves dependencies) / 运行管道（自动解析依赖）
+    print("=== Pipeline / 管道执行 ===")
+    results = app.run_pipeline(inputs={"greeting": {"name": "AACF"}})
+    for node_name, result in results.items():
+        print(f"{node_name}: {result}")
 '''
         (project_dir / "main.py").write_text(main_content, encoding="utf-8")
 
@@ -81,16 +127,77 @@ if __name__ == "__main__":
 
 An AACF-powered AI agent project.
 
-## Quick Start
+## Project Structure / 项目结构
+
+```
+{project_name}/
+├── agents.py    # Node definitions (chainable API) / 节点定义（链式 API）
+├── main.py      # Entry point / 入口文件
+├── README.md    # This file / 本文件
+└── .gitignore
+```
+
+## Quick Start / 快速开始
 
 ```bash
-# Activate virtual environment
-source .venv/bin/activate  # Linux/macOS
-.venv\\Scripts\\activate   # Windows
+# Install dependencies / 安装依赖
+pip install aacf
 
-# Run the project
+# Run the project / 运行项目
 python main.py
 ```
+
+## Node Configuration / 节点配置
+
+Use the chainable API to configure nodes in `agents.py`:
+在 `agents.py` 中使用链式 API 配置节点：
+
+```python
+@app.node("name")           # Node name / 节点名称
+    .who("role")            # Agent role / 智能体角色
+    .what("task")           # Core task / 核心任务
+    .where("context")       # Business context / 业务环境
+    .stream(True)           # Streaming output / 流式输出
+    .format("json")         # JSON output / JSON 输出
+    .cache(ttl=300)         # Cache 5 min / 缓存 5 分钟
+    .retry(max_attempts=3)  # Retry config / 重试配置
+def my_node(param: str):
+    pass
+```
+
+## Pipeline / 管道执行
+
+AACF automatically analyzes dependencies between nodes and builds a DAG.
+AACF 自动分析节点间的依赖关系并构建 DAG。
+
+```python
+# Run pipeline with inputs / 运行管道并传入输入
+results = app.run_pipeline(inputs={{"node_name": {{"param": "value"}}}})
+
+# Query execution plan / 查询执行计划
+app.get_execution_order()   # Topological order / 拓扑顺序
+app.get_parallel_groups()   # Parallel groups / 并行分组
+app.get_dependency_graph()  # Dependency graph / 依赖图
+```
+
+## Dependency Convention / 依赖约定
+
+Parameter names matching upstream node names create automatic dependencies:
+参数名匹配上游节点名时，自动建立依赖关系：
+
+```python
+@app.node("extractor").who("提取器").what("提取信息")
+def extractor(text: str):
+    pass
+
+@app.node("summarizer").who("摘要器").what("生成摘要")
+def summarizer(extractor: str):  # param "extractor" -> depends on node "extractor"
+    pass                          # 参数名 "extractor" 依赖节点 "extractor"
+```
+
+## License / 许可证
+
+SPDX-License-Identifier: GPL-3.0
 """
         (project_dir / "README.md").write_text(readme_content, encoding="utf-8")
 

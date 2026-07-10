@@ -46,7 +46,8 @@ def _get_app_from_module(module):
     """
     for attr_name in dir(module):
         attr = getattr(module, attr_name)
-        if hasattr(attr, "_nodes") and hasattr(attr, "compile"):
+        # Check for AACF app instance (has _wrappers and compile method)
+        if hasattr(attr, "_wrappers") and hasattr(attr, "compile"):
             return attr
     return None
 
@@ -71,11 +72,8 @@ def register_pipeline_tools(mcp):
                 return "Error: No AACF app instance found in agents.py."
 
             # Compile the pipeline
-            compiled = app.compile()
-
-            # Get analysis results
-            analyzer = compiled.get("analyzer")
-            planner = compiled.get("planner")
+            planner = app.compile()
+            analyzer = planner.analyzer  # Get the DependencyAnalyzer from the planner
 
             if analyzer is None:
                 return "Error: Compilation failed - no dependency analyzer created."
@@ -119,8 +117,8 @@ def register_pipeline_tools(mcp):
             if app is None:
                 return "Error: No AACF app instance found in agents.py."
 
-            compiled = app.compile()
-            analyzer = compiled.get("analyzer")
+            planner = app.compile()
+            analyzer = planner.analyzer
 
             if analyzer is None:
                 return "Error: No dependency analyzer available."
@@ -128,17 +126,16 @@ def register_pipeline_tools(mcp):
             # Get dependency info
             lines = ["Dependency Graph (DAG):", ""]
 
+            # Get the dependency graph
+            dep_graph = analyzer.get_dependency_graph()
+
             # Get all nodes and their dependencies
             for node_name in analyzer.get_execution_order():
-                deps = analyzer.get_dependencies(node_name)
-                dependents = analyzer.get_dependents(node_name)
-
-                dep_str = ", ".join(deps) if deps else "(none)"
-                depnt_str = ", ".join(dependents) if dependents else "(none)"
+                deps = dep_graph.get(node_name, set())
+                dep_str = ", ".join(sorted(deps)) if deps else "(none)"
 
                 lines.append(f"  {node_name}:")
                 lines.append(f"    Depends on: {dep_str}")
-                lines.append(f"    Required by: {depnt_str}")
                 lines.append("")
 
             return "\n".join(lines)
@@ -162,8 +159,8 @@ def register_pipeline_tools(mcp):
             if app is None:
                 return "Error: No AACF app instance found in agents.py."
 
-            compiled = app.compile()
-            analyzer = compiled.get("analyzer")
+            planner = app.compile()
+            analyzer = planner.analyzer
 
             if analyzer is None:
                 return "Error: No dependency analyzer available."
@@ -195,8 +192,8 @@ def register_pipeline_tools(mcp):
             if app is None:
                 return "Error: No AACF app instance found in agents.py."
 
-            compiled = app.compile()
-            analyzer = compiled.get("analyzer")
+            planner = app.compile()
+            analyzer = planner.analyzer
 
             if analyzer is None:
                 return "Error: No dependency analyzer available."

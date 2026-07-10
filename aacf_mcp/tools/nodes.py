@@ -133,31 +133,39 @@ def register_node_tools(mcp):
         """
         agents_file = _find_agents_file(project_path)
 
-        # Build decorator arguments
-        dec_args = [f'who="{who}"', f'what="{what}"']
-        if where:
-            dec_args.append(f'where="{where}"')
-        if why:
-            dec_args.append(f'why="{why}"')
-        if how:
-            dec_args.append(f'how="{how}"')
-        if stream:
-            dec_args.append("stream=True")
-        if format:
-            dec_args.append(f'format="{format}"')
-        if cache_enabled:
-            dec_args.append("cache_enabled=True")
-            if cache_ttl > 0:
-                dec_args.append(f"cache_ttl={cache_ttl}")
-        if max_retries != 3:
-            dec_args.append(f"max_retries={max_retries}")
+        # Build decorator arguments - AACF uses @app.node("name") format
+        # followed by chainable methods like .who().what().where()
+        dec_args = [f'"{name}"']
 
         dec_str = ", ".join(dec_args)
+
+        # Build chainable methods
+        chain_methods = []
+        if who:
+            chain_methods.append(f'.who("{who}")')
+        if what:
+            chain_methods.append(f'.what("{what}")')
+        if where:
+            chain_methods.append(f'.where("{where}")')
+        if why:
+            chain_methods.append(f'.why("{why}")')
+        if how:
+            chain_methods.append(f'.how("{how}")')
+        if stream:
+            chain_methods.append('.stream(True)')
+        if format:
+            chain_methods.append(f'.format("{format}")')
+        if cache_enabled:
+            chain_methods.append(f'.cache(ttl={cache_ttl})' if cache_ttl > 0 else '.cache()')
+        if max_retries != 3:
+            chain_methods.append(f'.retry(max_attempts={max_retries})')
+
+        chain_str = "".join(chain_methods) if chain_methods else ""
 
         # Build node code
         node_code = f"""
 
-@app.node({dec_str})
+@app.node({dec_str}){chain_str}
 def {name}(text: str):
     pass
 """
@@ -168,7 +176,7 @@ def {name}(text: str):
 
         return (
             f"Node '{name}' created successfully in {agents_file.name}.\n"
-            f"Decorator: @app.node({dec_str})\n"
+            f"Decorator: @app.node({dec_str}){chain_str}\n"
             f"Function: def {name}(text: str): pass"
         )
 
@@ -284,11 +292,15 @@ def {name}(text: str):
         agents_file = _find_agents_file(project_path)
         source = agents_file.read_text(encoding="utf-8")
 
-        # Find the node's decorator line
-        pattern = rf'(@app\.node\([^)]*def\s+{re.escape(node_name)}\s*\()'
-        match = re.search(pattern, source, re.DOTALL)
-        if not match:
-            # Try simpler pattern
+        # Find the node's decorator - handle both old and new format
+        # New format: @app.node("name").who(...).what(...).cache(...)
+        # Old format: @app.node(who="...", what="...")
+        # Match only the decorator line(s), not the function definition
+        dec_pattern = rf'(@app\.node\([^)]*\)(?:\.[\w]+\([^)]*\))*)\s*\n\s*def\s+{re.escape(node_name)}'
+        dec_match = re.search(dec_pattern, source, re.DOTALL)
+
+        if not dec_match:
+            # Try simpler pattern to check if node exists
             pattern2 = rf'def\s+{re.escape(node_name)}\s*\('
             if not re.search(pattern2, source):
                 return f"Node '{node_name}' not found in {agents_file.name}."
@@ -298,19 +310,55 @@ def {name}(text: str):
                 f"Please manually edit the decorator in {agents_file.name}."
             )
 
-        # Build new decorator args from existing + overrides
-        # Extract current decorator
-        dec_pattern = rf'@app\.node\(([^)]*)\)\s*\n\s*def\s+{re.escape(node_name)}'
-        dec_match = re.search(dec_pattern, source, re.DOTALL)
-        if not dec_match:
-            return (
-                f"Could not parse decorator for node '{node_name}'. "
-                f"Please manually edit {agents_file.name}."
-            )
+        # Extract the full decorator line (group 1 is the decorator only)
+        full_decorator = dec_match.group(1)
 
-        current_args = dec_match.group(1).strip()
+        # Parse existing chainable methods
+        # Extract the base @app.node("name") part
+        base_match = re.match(r'@app\.node\(([^)]*)\)', full_decorator)
+        if not base_match:
+            return f"Could not parse base decorator for node '{node_name}'."
 
-        # Parse existing args and apply overrides
+        node_name_arg = base_match.group(1).strip()
+
+        # Extract existing chainable methods
+        chain_methods = re.findall(r'\.(\w+)\(([^)]*)\)', full_decorator[len(base_match.group(0)):])
+
+        # Build new chain methods, replacing existing ones with same name
+        new_chains = {}
+        for method_name, method_args in chain_methods:
+            new_chains[method_name] = method_args
+
+        # Apply overrides
+        if cache_enabled is not None:
+            if cache_ttl is not None:
+                new_chains['cache'] = f'ttl={cache_ttl}'
+            else:
+                new_chains['cache'] = ''
+        if max_retries is not None:
+            if retry_delay is not None:
+                new_chains['retry'] = f'max_attempts={max_retries}, delay={retry_delay}'
+            else:
+                new_chains['retry'] = f'max_attempts={max_retries}'
+        if timeout is not None:
+            new_chains['timeout'] = str(timeout)
+        if stream is not None:
+            new_chains['stream'] = str(stream).lower()
+        if format is not None:
+            new_chains['format'] = f'"{format}"'
+
+        # Build new decorator
+        new_decorator = f'@app.node({node_name_arg})'
+        for method_name, method_args in new_chains.items():
+            if method_args:
+                new_decorator += f'.{method_name}({method_args})'
+            else:
+                new_decorator += f'.{method_name}()'
+
+        # Replace old decorator with new one
+        new_source = source.replace(full_decorator, new_decorator, 1)
+        agents_file.write_text(new_source, encoding="utf-8")
+
         changes = []
         if cache_enabled is not None:
             changes.append(f"cache_enabled={cache_enabled}")
@@ -326,21 +374,6 @@ def {name}(text: str):
             changes.append(f"stream={stream}")
         if format is not None:
             changes.append(f'format="{format}"')
-
-        if not changes:
-            return "No configuration changes specified."
-
-        # Simple approach: append new args to existing decorator
-        new_args = current_args.rstrip().rstrip(",")
-        if new_args:
-            new_args += ", "
-        new_args += ", ".join(changes)
-
-        old_dec = f"@app.node({current_args})"
-        new_dec = f"@app.node({new_args})"
-        new_source = source.replace(old_dec, new_dec, 1)
-
-        agents_file.write_text(new_source, encoding="utf-8")
 
         return (
             f"Node '{node_name}' configuration updated in {agents_file.name}.\n"

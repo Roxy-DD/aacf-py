@@ -17,7 +17,7 @@ def register_project_tools(mcp):
     """Register all project management tools with the MCP server."""
 
     @mcp.tool()
-    def init_project(project_name: str, path: str = "") -> str:
+    def init_project(project_name: str, path: str = "", create_venv: bool = False) -> str:
         """
         Initialize a new AACF project with standard structure.
         初始化具有标准结构的新 AACF 项目。
@@ -26,11 +26,12 @@ def register_project_tools(mcp):
         - agents.py: Node definitions / 节点定义
         - main.py: Entry point / 入口文件
         - README.md: Project documentation / 项目文档
-        - .venv/: Virtual environment with aacf installed / 虚拟环境
+        - .venv/: Virtual environment with aacf installed (optional) / 虚拟环境（可选）
 
         Args:
             project_name: Name of the new project directory
             path: Parent directory path (default: current directory)
+            create_venv: Create virtual environment and install aacf (default: False)
         """
         parent = Path(path).resolve() if path else Path.cwd()
         project_dir = parent / project_name
@@ -58,7 +59,7 @@ app = AACF(
 )
 
 
-@app.node(who="助手", what="向用户打招呼")
+@app.node("hello")
 def hello(name: str):
     pass
 '''
@@ -121,31 +122,36 @@ wheels/
 '''
         (project_dir / ".gitignore").write_text(gitignore_content, encoding="utf-8")
 
-        # Create virtual environment and install aacf
+        # Create virtual environment and install aacf (optional)
         venv_created = False
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "venv", ".venv"],
-                cwd=project_dir,
-                check=True,
-                capture_output=True,
-            )
+        if create_venv:
+            try:
+                subprocess.run(
+                    [sys.executable, "-m", "venv", ".venv"],
+                    cwd=project_dir,
+                    check=True,
+                    capture_output=True,
+                    timeout=30,  # 30 second timeout
+                )
 
-            # Determine pip path
-            if sys.platform == "win32":
-                pip_path = project_dir / ".venv" / "Scripts" / "pip.exe"
-            else:
-                pip_path = project_dir / ".venv" / "bin" / "pip"
+                # Determine pip path
+                if sys.platform == "win32":
+                    pip_path = project_dir / ".venv" / "Scripts" / "pip.exe"
+                else:
+                    pip_path = project_dir / ".venv" / "bin" / "pip"
 
-            subprocess.run(
-                [str(pip_path), "install", "aacf"],
-                cwd=project_dir,
-                check=True,
-                capture_output=True,
-            )
-            venv_created = True
-        except Exception as e:
-            pass  # venv creation is optional
+                subprocess.run(
+                    [str(pip_path), "install", "aacf"],
+                    cwd=project_dir,
+                    check=True,
+                    capture_output=True,
+                    timeout=60,  # 60 second timeout for pip install
+                )
+                venv_created = True
+            except subprocess.TimeoutExpired:
+                pass  # venv creation timed out
+            except Exception as e:
+                pass  # venv creation is optional
 
         result_lines = [
             f"Project '{project_name}' created successfully at {project_dir}!",

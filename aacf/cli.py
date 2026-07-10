@@ -233,29 +233,29 @@ def init(
         # 创建 agents.py — 节点定义 / Create agents.py — node definitions
         agents_py = project_dir / "agents.py"
         agents_py.write_text(
-            '# SPDX-License-Identifier: GPL-3.0\n'
+            "# SPDX-License-Identifier: GPL-3.0\n"
             '"""AI agent node definitions / AI 智能体节点定义。"""\n\n'
-            'from aacf import AACF, LLMConfig\n\n\n'
-            'app = AACF(\n'
-            '    __name__,\n'
-            '    config=LLMConfig(\n'
+            "from aacf import AACF, LLMConfig\n\n\n"
+            "app = AACF(\n"
+            "    __name__,\n"
+            "    config=LLMConfig(\n"
             '        model="qwen2.5-7b-instruct",\n'
             '        url="http://127.0.0.1:8080/v1/chat/completions",\n'
             '        language="zh",  # "zh" (中文) or "en" (English)\n'
-            '    ),\n'
-            ')\n\n\n'
+            "    ),\n"
+            ")\n\n\n"
             '@app.node(who="助手", what="向用户打招呼")\n'
-            'def hello(name: str):\n'
-            '    pass\n',
+            "def hello(name: str):\n"
+            "    pass\n",
             encoding="utf-8",
         )
 
         # 创建 main.py — 入口文件 / Create main.py — entry point
         main_py = project_dir / "main.py"
         main_py.write_text(
-            '# SPDX-License-Identifier: GPL-3.0\n'
+            "# SPDX-License-Identifier: GPL-3.0\n"
             '"""Application entry point / 应用入口文件。"""\n\n'
-            'from agents import hello\n\n\n'
+            "from agents import hello\n\n\n"
             'if __name__ == "__main__":\n'
             '    print(hello(name="World"))\n',
             encoding="utf-8",
@@ -308,7 +308,9 @@ def init(
     if venv_created:
         console.print("[bold green]✔[/] Virtual environment created and aacf installed / 虚拟环境已创建并安装 aacf。")
     else:
-        console.print("[bold yellow]⚠[/] Virtual environment creation failed. Please create manually. / 虚拟环境创建失败，请手动创建。")
+        console.print(
+            "[bold yellow]⚠[/] Virtual environment creation failed. Please create manually. / 虚拟环境创建失败，请手动创建。"
+        )
     console.print(f"\n[bold]Next steps / 下一步:[/]\n  cd {project_name}")
     if venv_created:
         console.print("  .venv\\Scripts\\activate   # Windows")

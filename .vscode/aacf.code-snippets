@@ -1,0 +1,56 @@
+{
+    "AACF App Setup": {
+        "prefix": ["aacf", "app"],
+        "body": [
+            "from aacf import AACF, LLMConfig",
+            "",
+            "app = AACF(__name__, config=LLMConfig(",
+            "    model=\"${1:qwen2.5-7b-instruct}\",",
+            "    url=\"${2:http://127.0.0.1:8080/v1/chat/completions}\",",
+            "    api_key=\"${3:}\",  # Optional for local models / 本地模型可留空",
+            "    language=\"${4|zh,en|}\",",
+            "))",
+            "$0"
+        ],
+        "description": "快速初始化 AACF 应用实例与全局 LLM 配置"
+    },
+    "AACF Node Definition": {
+        "prefix": ["node", "@app.node"],
+        "body": [
+            "@app.node(\"${1:node_name}\").who(\"${2:专家角色}\").what(\"${3:核心任务描述}\")",
+            "def ${4:node_name}(${5:param}: str):",
+            "    pass",
+            "$0"
+        ],
+        "description": "快速生成 AACF @app.node 智能节点（链式 API 精简版）"
+    },
+    "AACF Node Full": {
+        "prefix": ["nodefull", "@app.node.full"],
+        "body": [
+            "@app.node(\"${1:node_name}\")",
+            "    .who(\"${2:专家角色}\")",
+            "    .what(\"${3:核心任务描述}\")",
+            "    .where(\"${4:业务环境}\")",
+            "    .why(\"${5:执行意图}\")",
+            "    .how(\"${6:操作方法}\")",
+            "    .stream(${7|False,True|})",
+            "    .format(\"${8|text,json|}\")",
+            "    .cache(ttl=${9:300})",
+            "    .retry(max_attempts=${10:3})",
+            "def ${11:node_name}(${12:param}: str):",
+            "    pass",
+            "$0"
+        ],
+        "description": "快速生成 AACF @app.node 智能节点（链式 API 完整版）"
+    },
+    "AACF Node with Dependency": {
+        "prefix": ["nodedep", "@app.node.dep"],
+        "body": [
+            "@app.node(\"${1:downstream}\").who(\"${2:角色}\").what(\"${3:任务}\")",
+            "def ${4:downstream}(${5:upstream}: str):  # 参数名匹配上游节点名，自动建立依赖",
+            "    pass",
+            "$0"
+        ],
+        "description": "生成带依赖关系的 AACF 节点（参数名 = 上游节点名）"
+    }
+}

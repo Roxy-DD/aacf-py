@@ -7,6 +7,7 @@ Tools for initializing, reading, and validating AACF projects.
 初始化、读取和验证 AACF 项目的工具。
 """
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -204,6 +205,49 @@ def summarizer(extractor: str):  # param "extractor" -> depends on node "extract
     pass                          # 参数名 "extractor" 依赖节点 "extractor"
 ```
 
+## MCP Server / MCP 服务
+
+AACF provides an MCP (Model Context Protocol) server for AI-assisted development.
+AACF 提供 MCP 服务，支持 AI 辅助开发。
+
+### Configuration / 配置方式
+
+**VS Code / Cursor** — already configured in `.vscode/mcp.json`:
+```json
+{
+            "servers": {
+                "aacf": {
+                    "command": "python",
+      "args": ["-m", "aacf_mcp"]
+    }
+  }
+}
+```
+
+**Qoder** — already configured in `.qoder/mcp.json`:
+```json
+{
+            "mcpServers": {
+                "aacf": {
+                    "command": "python",
+      "args": ["-m", "aacf_mcp"]
+    }
+  }
+}
+```
+
+**Other IDEs** — add the MCP server config to your IDE's MCP settings:
+```json
+{
+            "aacf": {
+                "command": "python",
+    "args": ["-m", "aacf_mcp"]
+  }
+}
+```
+
+> Requires: `pip install aacf[mcp]`
+
 ## License / 许可证
 
 SPDX-License-Identifier: GPL-3.0
@@ -237,19 +281,105 @@ wheels/
 """
         (project_dir / ".gitignore").write_text(gitignore_content, encoding="utf-8")
 
+        # Create .vscode directory with code snippets and MCP config
+        vscode_dir = project_dir / ".vscode"
+        vscode_dir.mkdir(exist_ok=True)
+
+        # Copy code snippets for IDE support
+        code_snippets = {
+            "AACF App Setup": {
+                "prefix": ["aacf", "app"],
+                "body": [
+                    "from aacf import AACF, LLMConfig",
+                    "",
+                    "app = AACF(__name__, config=LLMConfig(",
+                    '    model="${1:qwen2.5-7b-instruct}",',
+                    '    url="${2:http://127.0.0.1:8080/v1/chat/completions}",',
+                    '    api_key="${3:}",  # Optional for local models / 本地模型可留空',
+                    '    language="${4|zh,en|}",',
+                    "))",
+                    "$0",
+                ],
+                "description": "快速初始化 AACF 应用实例与全局 LLM 配置",
+            },
+            "AACF Node Definition": {
+                "prefix": ["node", "@app.node"],
+                "body": [
+                    '@app.node("${1:node_name}").who("${2:专家角色}").what("${3:核心任务描述}")',
+                    "def ${4:node_name}(${5:param}: str):",
+                    "    pass",
+                    "$0",
+                ],
+                "description": "快速生成 AACF @app.node 智能节点（链式 API 精简版）",
+            },
+            "AACF Node Full": {
+                "prefix": ["nodefull", "@app.node.full"],
+                "body": [
+                    '@app.node("${1:node_name}")',
+                    '    .who("${2:专家角色}")',
+                    '    .what("${3:核心任务描述}")',
+                    '    .where("${4:业务环境}")',
+                    '    .why("${5:执行意图}")',
+                    '    .how("${6:操作方法}")',
+                    "    .stream(${7|False,True|})",
+                    '    .format("${8|text,json|}")',
+                    "    .cache(ttl=${9:300})",
+                    "    .retry(max_attempts=${10:3})",
+                    "def ${11:node_name}(${12:param}: str):",
+                    "    pass",
+                    "$0",
+                ],
+                "description": "快速生成 AACF @app.node 智能节点（链式 API 完整版）",
+            },
+            "AACF Node with Dependency": {
+                "prefix": ["nodedep", "@app.node.dep"],
+                "body": [
+                    '@app.node("${1:downstream}").who("${2:角色}").what("${3:任务}")',
+                    "def ${4:downstream}(${5:upstream}: str):  # 参数名匹配上游节点名，自动建立依赖",
+                    "    pass",
+                    "$0",
+                ],
+                "description": "生成带依赖关系的 AACF 节点（参数名 = 上游节点名）",
+            },
+        }
+        (vscode_dir / "aacf.code-snippets").write_text(
+            json.dumps(code_snippets, indent=4, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+
+        # Create .vscode/mcp.json — MCP server config for VS Code / Cursor
+        (vscode_dir / "mcp.json").write_text(
+            json.dumps(
+                {
+                    "servers": {
+                        "aacf": {
+                            "command": "python",
+                            "args": ["-m", "aacf_mcp"],
+                        }
+                    }
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
         # Create .qoder/mcp.json — MCP server config for Qoder
         qoder_dir = project_dir / ".qoder"
         qoder_dir.mkdir(exist_ok=True)
-        mcp_json = qoder_dir / "mcp.json"
-        mcp_json.write_text(
-            "{\n"
-            '  "mcpServers": {\n'
-            '    "aacf": {\n'
-            '      "command": "python",\n'
-            '      "args": ["-m", "aacf_mcp"]\n'
-            "    }\n"
-            "  }\n"
-            "}\n",
+        (qoder_dir / "mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "aacf": {
+                            "command": "python",
+                            "args": ["-m", "aacf_mcp"],
+                        }
+                    }
+                },
+                indent=2,
+            )
+            + "\n",
             encoding="utf-8",
         )
 
@@ -293,6 +423,8 @@ wheels/
                 "main.py",
                 "README.md",
                 ".gitignore",
+                ".vscode/aacf.code-snippets",
+                ".vscode/mcp.json",
                 ".qoder/mcp.json",
             ],
         }

@@ -13,6 +13,8 @@ A Python framework for building LLM-driven agent pipelines through decorators, d
 
 ## Design Philosophy
 
+> **How to make any model — weak or strong — think elegantly within fully controllable boundaries, through explicit rule design and process orchestration?**
+>
 > *You think you're thinking freely. Actually you're thinking freely within the correct range I designed.*
 > *This is not restriction. This is the most elegant liberation.*
 

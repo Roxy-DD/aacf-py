@@ -229,25 +229,56 @@ def init(
         progress.add_task(description="Creating project structure / 创建项目结构...", total=None)
         # 创建项目目录 / Create project directory
         project_dir.mkdir(parents=True)
-        (project_dir / "src").mkdir()
-        # 创建 main.py 模板 / Create main.py template
+
+        # 创建 agents.py — 节点定义 / Create agents.py — node definitions
+        agents_py = project_dir / "agents.py"
+        agents_py.write_text(
+            '# SPDX-License-Identifier: GPL-3.0\n'
+            '"""AI agent node definitions / AI 智能体节点定义。"""\n\n'
+            'from aacf import AACF, LLMConfig\n\n\n'
+            'app = AACF(\n'
+            '    __name__,\n'
+            '    config=LLMConfig(\n'
+            '        model="qwen2.5-7b-instruct",\n'
+            '        url="http://127.0.0.1:8080/v1/chat/completions",\n'
+            '        language="zh",  # "zh" (中文) or "en" (English)\n'
+            '    ),\n'
+            ')\n\n\n'
+            '@app.node(who="助手", what="向用户打招呼")\n'
+            'def hello(name: str):\n'
+            '    pass\n',
+            encoding="utf-8",
+        )
+
+        # 创建 main.py — 入口文件 / Create main.py — entry point
         main_py = project_dir / "main.py"
         main_py.write_text(
-            "from aacf import AACF, LLMConfig\n\n"
-            "app = AACF(__name__, config=LLMConfig(\n"
-            '    model="qwen2.5-7b-instruct",\n'
-            '    url="http://127.0.0.1:8080/v1/chat/completions",\n'
-            "))\n\n\n"
-            '@app.node("hello").who("助手").what("打招呼").build()\n'
-            "def hello(name: str):\n"
-            "    pass\n\n\n"
+            '# SPDX-License-Identifier: GPL-3.0\n'
+            '"""Application entry point / 应用入口文件。"""\n\n'
+            'from agents import hello\n\n\n'
             'if __name__ == "__main__":\n'
             '    print(hello(name="World"))\n',
             encoding="utf-8",
         )
-        # 创建 __init__.py / Create __init__.py
-        (project_dir / "src" / "__init__.py").write_text("", encoding="utf-8")
-        # 初始化虚拟环境 / Initialize virtual environment
+
+        # 创建 README.md / Create README.md
+        readme_md = project_dir / "README.md"
+        readme_md.write_text(
+            f"# {project_name}\n\n"
+            "An AACF-powered AI agent project.\n\n"
+            "## Quick Start\n\n"
+            "```bash\n"
+            "# Activate virtual environment\n"
+            "source .venv/bin/activate  # Linux/macOS\n"
+            ".venv\\Scripts\\activate   # Windows\n\n"
+            "# Run the project\n"
+            "python main.py\n"
+            "```\n",
+            encoding="utf-8",
+        )
+
+        # 初始化虚拟环境并安装 aacf / Initialize venv and install aacf
+        venv_created = False
         try:
             subprocess.check_call(
                 [sys.executable, "-m", "venv", ".venv"],
@@ -255,12 +286,34 @@ def init(
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+            venv_created = True
         except (subprocess.CalledProcessError, Exception):
             pass  # 虚拟环境创建失败不影响项目初始化 / venv failure is non-fatal
 
+        if venv_created:
+            # 在 venv 中安装 aacf / Install aacf in the venv
+            venv_python = project_dir / ".venv" / "Scripts" / "python.exe"
+            if not venv_python.exists():
+                venv_python = project_dir / ".venv" / "bin" / "python"
+            try:
+                subprocess.check_call(
+                    [str(venv_python), "-m", "pip", "install", "aacf", "-q"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except (subprocess.CalledProcessError, Exception):
+                pass  # 安装失败时用户可手动安装 / User can install manually if this fails
+
     console.print("[bold green]✔[/] Project structure created / 项目结构已创建。")
-    console.print("[bold green]✔[/] Virtual environment initialized / 虚拟环境已初始化。")
-    console.print(f"\n[bold]Next steps / 下一步:[/]\n  cd {project_name}\n  aacf run main.py")
+    if venv_created:
+        console.print("[bold green]✔[/] Virtual environment created and aacf installed / 虚拟环境已创建并安装 aacf。")
+    else:
+        console.print("[bold yellow]⚠[/] Virtual environment creation failed. Please create manually. / 虚拟环境创建失败，请手动创建。")
+    console.print(f"\n[bold]Next steps / 下一步:[/]\n  cd {project_name}")
+    if venv_created:
+        console.print("  .venv\\Scripts\\activate   # Windows")
+        console.print("  source .venv/bin/activate  # Linux/macOS")
+    console.print("  python main.py")
 
 
 @app.command()
@@ -270,8 +323,15 @@ def run(
     """Execute an AACF python script with enhanced AI logging.
     执行 AACF Python 脚本，增强 AI 日志输出。"""
     console.print(f"[bold magenta]▶ Running AACF Script / 运行脚本:[/] {script}")
+
+    # 优先使用项目 venv 的 Python / Prefer project venv's Python
+    venv_python = Path(".venv") / "Scripts" / "python.exe"
+    if not venv_python.exists():
+        venv_python = Path(".venv") / "bin" / "python"
+    python_exe = str(venv_python) if venv_python.exists() else sys.executable
+
     try:
-        subprocess.check_call([sys.executable, script])
+        subprocess.check_call([python_exe, script])
     except subprocess.CalledProcessError as e:
         console.print(f"[bold red]✖ Script exited with error code / 脚本退出错误码 {e.returncode}[/]")
         raise typer.Exit(code=e.returncode)

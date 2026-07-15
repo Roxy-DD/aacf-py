@@ -75,6 +75,15 @@ print(translate(text="Hello World"))
 **Rust 风格错误。** `ExecutionResult` 使错误处理显式且强制。无静默失败。
 
 **结构化数据校验与重试。** 只要将函数返回值声明为 Pydantic `BaseModel`，框架会自动强制 LLM 输出 JSON、注入 Schema，并在校验失败时自动触发带有错误反馈的重试循环，直到获取合规的结构化数据。
+```python
+class Person(BaseModel):
+    name: str
+    age: int
+
+@app.node("extractor").what("提取人物信息")
+def extract(text: str) -> Person:
+    ... # 框架会自动强制要求 LLM 返回严格符合 Person 结构的 JSON
+```
 
 **兼容 OpenAI。** 通过更改 URL 在云端 API 和本地模型之间切换。无需修改代码。
 

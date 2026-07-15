@@ -75,6 +75,15 @@ print(translate(text="Hello World"))
 **Rust-style errors.** `ExecutionResult` makes error handling explicit and mandatory. No silent failures.
 
 **Structured Data Validation.** Return a Pydantic `BaseModel` and AACF automatically forces JSON output, injects the schema, and performs auto-retry loops until the LLM returns valid structured data.
+```python
+class Person(BaseModel):
+    name: str
+    age: int
+
+@app.node("extractor").what("Extract person")
+def extract(text: str) -> Person:
+    ... # AACF forces LLM to return valid JSON matching Person schema
+```
 
 **OpenAI-compatible.** Switch between cloud APIs and local models by changing a URL. No code changes.
 

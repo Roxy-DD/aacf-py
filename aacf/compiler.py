@@ -482,10 +482,10 @@ class DependencyAnalyzer:
         Returns:
             List of node names forming the cycle / 构成循环的节点名列表
         """
-        visited = set()
-        path = []
+        visited: Set[str] = set()
+        path: List[str] = []
 
-        def dfs(node: str) -> bool:
+        def dfs(node: str) -> List[str]:
             if node in visited:
                 # Found cycle
                 cycle_start = path.index(node)
@@ -823,7 +823,7 @@ class AtomicNode:
 
         # All retries exhausted
         self.status = NodeStatus.FAILED
-        return ExecutionResult.failure(last_error, node_name=self.name, attempts=self.attempts)
+        return ExecutionResult.failure(last_error or "Unknown error", node_name=self.name, attempts=self.attempts)
 
     def reset(self) -> None:
         """Reset node to pending state / 重置节点为待执行状态"""
@@ -992,6 +992,7 @@ class AtomicScheduler:
         self,
         inputs: Optional[Dict[str, Dict[str, Any]]] = None,
         max_workers: Optional[int] = None,
+        qps_limit: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Execute all nodes with parallel execution for independent nodes.
@@ -1007,6 +1008,9 @@ class AtomicScheduler:
             max_workers: Maximum number of threads in the pool. If None,
                         uses Python's default (min(32, os.cpu_count() + 4)).
                         线程池最大线程数。如为 None，使用 Python 默认值。
+            qps_limit: Optional Queries Per Second limit. If set, node submissions
+                       are delayed to maintain this rate. / 可选的每秒查询率限制。
+                       如果设定，将延迟节点提交以维持此速率。
 
         Returns:
             Dict mapping node name to execution result / 节点名到执行结果的映射
@@ -1020,8 +1024,8 @@ class AtomicScheduler:
             scheduler.add_node("a", func_a)
             scheduler.add_node("b", func_b)  # independent of a
             scheduler.add_node("c", func_c, dependencies={"a", "b"})
-            results = scheduler.run_parallel(max_workers=4)
-            # a and b execute in parallel, then c
+            results = scheduler.run_parallel(max_workers=4, qps_limit=2.0)
+            # a and b execute in parallel (rate limited), then c
         """
         inputs = inputs or {}
         self._results = {}
@@ -1055,6 +1059,11 @@ class AtomicScheduler:
                     for dep_name in node.dependencies:
                         if dep_name in self._results:
                             node_input[dep_name] = self._results[dep_name]
+
+                    # Apply QPS limit if specified
+                    if qps_limit is not None and qps_limit > 0:
+                        import time
+                        time.sleep(1.0 / qps_limit)
 
                     # Submit to thread pool
                     future = executor.submit(node.execute, node_input)

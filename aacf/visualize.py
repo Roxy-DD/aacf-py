@@ -32,7 +32,7 @@ import html
 from typing import Any, Dict, Optional
 
 try:
-    from pyvis.network import Network
+    from pyvis.network import Network  # type: ignore
 
     PYVIS_AVAILABLE = True
 except ImportError:
@@ -229,6 +229,8 @@ class DAGVisualizer:
             html_path = visualizer.generate_html("pipeline.html")
             print(f"Visualization saved to: {html_path}")
         """
+        assert self.analyzer is not None
+
         # Build tooltip map for all nodes / 构建所有节点的工具提示映射
         tooltip_map = {}
         for node_name in self.analyzer.nodes:

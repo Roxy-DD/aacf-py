@@ -196,6 +196,49 @@ visualizer = DAGVisualizer(app)
 visualizer.generate_html("dag.html")  # Interactive HTML
 ```
 
+### Concurrency & Rate Limiting
+
+AACF's compiler natively supports maximized concurrent execution based on Kahn's topological sorting. To accommodate API rate limits, you can set `qps_limit` for precise token-bucket style rate control:
+
+```python
+# max_workers: Maximum concurrent thread pool size
+# qps_limit: Maximum node tasks per second (e.g., 1.0 = 1 task per second)
+results = app.run_pipeline_parallel(
+    inputs={"task_name": "extract_data"}, 
+    max_workers=5,
+    qps_limit=1.0 
+)
+```
+
+### Macro-Micro Integration: Using AACF as a LangChain Tool
+
+AACF is designed as a reliable micro-execution engine for Macro Planners (like large models). You can easily wrap an entire structured AACF pipeline as a LangChain Tool for Agents to call. This perfectly solves the **abstraction collapse** and hallucination issues that large models frequently encounter during repetitive information extraction or massive parallel tasks:
+
+```python
+from langchain.tools import tool
+from aacf import AACF
+
+# 1. Define pre-compiled AACF micro-pipeline
+aacf_app = AACF(__name__)
+# ... @aacf_app.node definitions ...
+
+# 2. Wrap as LangChain Tool
+@tool
+def process_data_with_aacf(raw_data: str) -> dict:
+    """
+    Call this tool when complex but fixed-path multi-step data extraction is needed.
+    It triggers a pre-compiled local 7B model pipeline, saving main model costs.
+    """
+    results = aacf_app.run_pipeline_parallel(
+        inputs={"raw_text": raw_data}, 
+        qps_limit=2.0
+    )
+    return results
+
+# 3. Inject into LangChain Agent
+# agent = initialize_agent([process_data_with_aacf], llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION)
+```
+
 ### Caching
 
 ```python

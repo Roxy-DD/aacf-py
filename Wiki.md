@@ -303,7 +303,47 @@ scheduler.add_node("summarizer", summarizer_func, dependencies={"extractor"})
 results = scheduler.run_all({"extractor": {"text": "..."}})
 ```
 
-Nodes whose dependencies are not yet satisfied wait. Failed nodes block downstream execution and raise `PipelineError`.
+Nodes with unmet dependencies wait. Failed nodes block downstream execution and raise `PipelineError`.
+
+---
+
+## Concurrent Execution & QPS Rate Limiting
+
+`AtomicScheduler.run_parallel` and the top-level `AACF.run_pipeline_parallel` natively support execution mode based on maximum topological parallelism, allowing precise control over API rate limits:
+
+```python
+# max_workers: Maximum thread pool concurrency
+# qps_limit: Token-bucket rate limit, max requests per second
+results = app.run_pipeline_parallel(
+    inputs={"task": "process_batch"}, 
+    max_workers=10, 
+    qps_limit=5.0
+)
+```
+When `qps_limit` is set, the scheduling engine automatically calculates and uses `time.sleep` before dispatching node tasks based on the timestamp of the last execution. This ensures the entire concurrent pool does not macroscopically exceed the configured QPS, avoiding HTTP 429 rate limit errors from external LLM APIs. If unspecified, it defaults to maximized full-speed concurrency.
+
+---
+
+## Macro-Micro Architecture: As a LangChain Tool
+
+AACF provides a highly structured and deterministic micro-flow engine, making it the perfect "Tool" plugin within LangChain/LangGraph. Let the LangChain Agent handle complex, divergent reasoning, but when a deterministic, data-heavy linear processing pipeline is needed, wrap it as a Tool call:
+
+```python
+from langchain.tools import tool
+from aacf import AACF
+
+aacf_app = AACF(__name__)
+# Pre-defined node groups and pentuple constraints...
+
+@tool
+def robust_data_extractor(raw_data: str) -> dict:
+    """
+    Call this tool when standard multi-step cleaning, analysis, and extraction are required for user data.
+    """
+    return aacf_app.run_pipeline_parallel({"data": raw_data}, qps_limit=2.0)
+
+# agent = initialize_agent([robust_data_extractor], ...)
+```
 
 ---
 

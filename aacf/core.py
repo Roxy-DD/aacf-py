@@ -91,16 +91,16 @@ class NodeBuilder:
         self._func = func
 
         # DSL 元数据 / DSL metadata
-        self._who = ""
-        self._where = ""
-        self._what = ""
-        self._why = ""
-        self._how = ""
-        self._module = ""
-        self._out = ""
-        self._stream = False
-        self._format = ""
-        self._branches = None
+        self._who: str = ""
+        self._where: str = ""
+        self._what: str = ""
+        self._why: str = ""
+        self._how: typing.Union[str, typing.List[str]] = ""
+        self._module: typing.Union[str, typing.List[typing.Callable]] = ""
+        self._out: str = ""
+        self._stream: bool = False
+        self._format: str = ""
+        self._branches: Optional[Dict[str, typing.Callable]] = None
 
         # 执行配置 / Execution config
         self._cache_enabled = False
@@ -393,7 +393,7 @@ class LLMConfig:
         Args:
             **kwargs: 配置参数，参见 LLMConfigKwargs / Config params, see LLMConfigKwargs
         """
-        self.config: Dict[str, Any] = kwargs or {}
+        self.config: Dict[str, Any] = dict(kwargs) if kwargs else {}
 
     def __call__(self, **kwargs: Unpack[LLMConfigKwargs]) -> "LLMConfig":
         """
@@ -727,7 +727,7 @@ class AACF:
         result = story_writer(topic="赛博朋克")
     """
 
-    def __init__(self, name: str, config: LLMConfig = None):
+    def __init__(self, name: str, config: Optional[LLMConfig] = None):
         """
         创建一个新的 AACF 应用实例 / Create a new AACF application instance.
 
@@ -741,7 +741,7 @@ class AACF:
         self.config = config
         self._compiler = DependencyAnalyzer()
         self._compiled = False
-        self._plan = None
+        self._plan: Optional[List[Dict[str, Any]]] = None
         self._wrappers: Dict[str, typing.Callable] = {}
 
     def node(self, name: str) -> NodeBuilder:
@@ -924,7 +924,7 @@ class AACF:
 
             # 缓存配置存入元数据，供管道执行时使用
             # Cache config stored in metadata for pipeline execution
-            wrapper.__aacf_meta__ = {
+            meta_dict = {
                 "who": who,
                 "what": what,
                 "where": where,
@@ -941,12 +941,13 @@ class AACF:
                 "timeout": timeout,
                 "branches": branches,
             }
+            setattr(wrapper, "__aacf_meta__", meta_dict)
 
             filepath = inspect.getsourcefile(func)
             if filepath:
                 if filepath not in _AACF_NODE_REGISTRY:
                     _AACF_NODE_REGISTRY[filepath] = []
-                _AACF_NODE_REGISTRY[filepath].append((func, wrapper.__aacf_meta__, sig))
+                _AACF_NODE_REGISTRY[filepath].append((func, meta_dict, sig))
 
                 global _AACF_ATEXIT_REGISTERED
                 if not _AACF_ATEXIT_REGISTERED:
@@ -954,7 +955,7 @@ class AACF:
                     _AACF_ATEXIT_REGISTERED = True
 
             # Register with compiler for dependency analysis
-            self._compiler.register_from_aacf_meta(func.__name__, func, wrapper.__aacf_meta__)
+            self._compiler.register_from_aacf_meta(func.__name__, func, meta_dict)
             # Store wrapper for pipeline execution
             self._wrappers[func.__name__] = wrapper
 
@@ -1085,7 +1086,7 @@ class AACF:
 
             # 从装饰器元数据中读取缓存配置，优先使用节点级配置
             # Read cache config from decorator metadata, node-level config takes priority
-            meta = wrapper.__aacf_meta__
+            meta = getattr(wrapper, "__aacf_meta__", {})
             node_atomic_config = AtomicNodeConfig(
                 cache_enabled=meta.get("cache_enabled", False),
                 cache_ttl=meta.get("cache_ttl", 0),
@@ -1114,6 +1115,7 @@ class AACF:
         inputs: Optional[Dict[str, Dict[str, Any]]] = None,
         node_config: Optional[AtomicNodeConfig] = None,
         max_workers: Optional[int] = None,
+        qps_limit: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Execute all registered nodes as a parallel pipeline.
@@ -1127,6 +1129,7 @@ class AACF:
             inputs: Per-node input data / 每个节点的输入数据
             node_config: Default AtomicNodeConfig for all nodes / 所有节点的默认配置
             max_workers: Maximum thread pool size / 线程池最大线程数
+            qps_limit: Optional Queries Per Second limit / 可选的每秒查询率限制
 
         Returns:
             Dict mapping node name to execution result / 节点名到执行结果的映射
@@ -1145,7 +1148,7 @@ class AACF:
 
             # 从装饰器元数据中读取缓存配置，优先使用节点级配置
             # Read cache config from decorator metadata, node-level config takes priority
-            meta = wrapper.__aacf_meta__
+            meta = getattr(wrapper, "__aacf_meta__", {})
             node_atomic_config = AtomicNodeConfig(
                 cache_enabled=meta.get("cache_enabled", False),
                 cache_ttl=meta.get("cache_ttl", 0),
@@ -1166,7 +1169,7 @@ class AACF:
                 params=node_info.params,
             )
 
-        return scheduler.run_parallel(inputs=inputs, max_workers=max_workers)
+        return scheduler.run_parallel(inputs=inputs, max_workers=max_workers, qps_limit=qps_limit)
 
     def get_node_status(self, node_name: str) -> Optional[NodeStatus]:
         """

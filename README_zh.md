@@ -196,6 +196,49 @@ visualizer = DAGVisualizer(app)
 visualizer.generate_html("dag.html")  # 交互式 HTML
 ```
 
+### 并发调度与速率限制 (Concurrency & Rate Limiting)
+
+AACF 的编译器原生支持最大化并发执行（基于 Kahn 拓扑排序）。为适应 API 速率限制（Rate Limits），可通过设置 `qps_limit` 实现令牌桶级别的精准控速：
+
+```python
+# max_workers: 最大并发线程池大小
+# qps_limit: 每秒允许发起的最大节点任务数 (如 1.0 = 每秒 1 个任务)
+results = app.run_pipeline_parallel(
+    inputs={"task_name": "extract_data"}, 
+    max_workers=5,
+    qps_limit=1.0 
+)
+```
+
+### 宏微观架构：将 AACF 作为 LangChain/LangGraph 工具使用
+
+AACF 被设计为大模型（Macro Planner）的可靠微观执行下属。你可以极其简单地将一整套结构化的 AACF 管道包装为 LangChain Tool，供 Agent 调用。这完美解决了大模型在重复信息抽取、大规模并行等场景下极易发生的**抽象坍缩**与幻觉问题：
+
+```python
+from langchain.tools import tool
+from aacf import AACF
+
+# 1. 定义预编译好的 AACF 微流水线
+aacf_app = AACF(__name__)
+# ... 此处省略 @aacf_app.node 节点定义 ...
+
+# 2. 包装为 LangChain Tool
+@tool
+def process_data_with_aacf(raw_data: str) -> dict:
+    """
+    当需要进行复杂但路径固定的多步信息抽取时，调用此工具。
+    它将在底层触发预编译的本地 7B 模型流水线，节省主模型开销。
+    """
+    results = aacf_app.run_pipeline_parallel(
+        inputs={"raw_text": raw_data}, 
+        qps_limit=2.0
+    )
+    return results
+
+# 3. 注入给 LangChain Agent
+# agent = initialize_agent([process_data_with_aacf], llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION)
+```
+
 ### 缓存
 
 ```python

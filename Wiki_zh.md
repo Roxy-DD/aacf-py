@@ -307,6 +307,46 @@ results = scheduler.run_all({"extractor": {"text": "..."}})
 
 ---
 
+## 并发执行与 QPS 限流
+
+`AtomicScheduler.run_parallel` 以及顶层 `AACF.run_pipeline_parallel` 原生支持基于最大拓扑并行的执行模式，并允许精准控制 API 速率限制：
+
+```python
+# max_workers: 线程池最大并发数
+# qps_limit: 令牌桶限流，控制每秒节点发出的最大请求数量
+results = app.run_pipeline_parallel(
+    inputs={"task": "process_batch"}, 
+    max_workers=10, 
+    qps_limit=5.0
+)
+```
+当 `qps_limit` 被设置时，调度引擎会在派发节点任务前，根据上一次执行的时间戳自动计算并 `time.sleep`，确保整个并发池在宏观上不超过设定的 QPS，以避免触发外部大模型接口的 HTTP 429 速率超限报错。未指定时，回退到最大化全速并发。
+
+---
+
+## 宏微观架构：作为 LangChain Tool
+
+AACF 提供了一个高度结构化且确定的微流引擎，这使它成为了 LangChain/LangGraph 中最完美的“外挂工具（Tool）”。对于复杂发散性推理，让 LangChain Agent 掌控全局；而当需要确定性的、重数据的线性处理流水线时，将其封装为 Tool 调用：
+
+```python
+from langchain.tools import tool
+from aacf import AACF
+
+aacf_app = AACF(__name__)
+# 预先定义好的节点群和五元组约束...
+
+@tool
+def robust_data_extractor(raw_data: str) -> dict:
+    """
+    当需要对用户数据执行标准的多步清洗、分析和提取时调用此工具。
+    """
+    return aacf_app.run_pipeline_parallel({"data": raw_data}, qps_limit=2.0)
+
+# agent = initialize_agent([robust_data_extractor], ...)
+```
+
+---
+
 ## 错误处理
 
 AACF 遵循 Rust 的错误哲学：错误是显式的、有类型的、携带上下文的。

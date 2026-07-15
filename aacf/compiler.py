@@ -1063,6 +1063,7 @@ class AtomicScheduler:
                     # Apply QPS limit if specified
                     if qps_limit is not None and qps_limit > 0:
                         import time
+
                         time.sleep(1.0 / qps_limit)
 
                     # Submit to thread pool

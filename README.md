@@ -74,9 +74,11 @@ print(translate(text="Hello World"))
 
 **Rust-style errors.** `ExecutionResult` makes error handling explicit and mandatory. No silent failures.
 
+**Structured Data Validation.** Return a Pydantic `BaseModel` and AACF automatically forces JSON output, injects the schema, and performs auto-retry loops until the LLM returns valid structured data.
+
 **OpenAI-compatible.** Switch between cloud APIs and local models by changing a URL. No code changes.
 
-**Explicit code override.** Function body is `pass` -> framework calls LLM. Function body has code -> your code runs. Switch back to `pass` anytime.
+**Explicit code override.** Function body is `...` (or `pass`) -> framework calls LLM. Function body has code -> your code runs. Switch back to `...` anytime.
 
 ---
 

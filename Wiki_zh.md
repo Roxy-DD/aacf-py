@@ -217,7 +217,26 @@ def analyzer(text: str):
     )
 ```
 
-将函数体改回 `pass` 即可恢复默认行为。
+将函数体改回 `...` 或 `pass` 即可恢复默认行为。
+
+### 结构化数据校验与重试
+
+结合 Pydantic，你可以轻松要求 LLM 输出特定格式的 JSON，并在校验失败时自动重试。
+
+只需在节点上添加 `-> BaseModel` 返回类型注解，并在参数里不要传入 `stream=True`，AACF 会自动截获该类型。它会将目标 JSON Schema 注入给 LLM。如果 LLM 的返回不符合规范，AACF 将自动触发报错重试反馈（附带详细的 Pydantic ValidationError），逼迫 LLM 自行修正。
+
+```python
+from pydantic import BaseModel
+
+class PersonInfo(BaseModel):
+    name: str
+    age: int
+    occupation: str
+
+@app.node("extract_person").what("Extract person info from text")
+def extract_person(text: str) -> PersonInfo:
+    ... # 框架会自动要求 LLM 输出符合 PersonInfo 的 JSON 并校验
+```
 
 ---
 

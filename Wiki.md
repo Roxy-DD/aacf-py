@@ -216,8 +216,26 @@ def analyzer(text: str):
         temperature=0.3,
     )
 ```
+Change body back to `...` or `pass` to restore default behavior.
 
-Change body back to `pass` to restore default behavior.
+### Structured Data Validation & Retry
+
+By combining with Pydantic, you can effortlessly enforce the LLM to output specific JSON formats and auto-retry on validation failures.
+
+Simply add a `-> BaseModel` return type annotation to your node and ensure `stream=True` is NOT passed. AACF will automatically intercept it, inject the target JSON Schema into the prompt, and if the LLM's response violates the schema, trigger an automatic feedback loop (attaching the detailed Pydantic ValidationError) to force the LLM to correct itself until valid structured data is received.
+
+```python
+from pydantic import BaseModel
+
+class PersonInfo(BaseModel):
+    name: str
+    age: int
+    occupation: str
+
+@app.node("extract_person").what("Extract person info from text")
+def extract_person(text: str) -> PersonInfo:
+    ... # The framework will automatically enforce and validate the PersonInfo JSON schema
+```
 
 ---
 

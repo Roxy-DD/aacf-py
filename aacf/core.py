@@ -456,12 +456,22 @@ def _is_function_body_pass(func) -> bool:
             if isinstance(node, ast.FunctionDef) and node.name == func.__name__:
                 body = node.body
 
-                if len(body) == 1 and isinstance(body[0], ast.Pass):
+                def is_pass(stmt):
+                    return isinstance(stmt, ast.Pass) or (
+                        isinstance(stmt, ast.Expr) 
+                        and isinstance(stmt.value, ast.Constant) 
+                        and getattr(stmt.value, "value", None) is Ellipsis
+                    ) or (
+                        isinstance(stmt, ast.Expr)
+                        and type(stmt.value).__name__ == "Ellipsis"
+                    )
+
+                if len(body) == 1 and is_pass(body[0]):
                     return True
 
                 if len(body) == 2:
                     if isinstance(body[0], ast.Expr) and isinstance(body[0].value, (ast.Str, ast.Constant)):
-                        if isinstance(body[1], ast.Pass):
+                        if is_pass(body[1]):
                             return True
 
                 return False
@@ -838,6 +848,16 @@ class AACF:
         def decorator(func):
             sig = inspect.signature(func)
 
+            # Check if return annotation is a Pydantic BaseModel
+            pydantic_model = None
+            if sig.return_annotation != inspect.Parameter.empty:
+                try:
+                    from pydantic import BaseModel
+                    if isinstance(sig.return_annotation, type) and issubclass(sig.return_annotation, BaseModel):
+                        pydantic_model = sig.return_annotation
+                except ImportError:
+                    pass
+
             is_pass_only = _is_function_body_pass(func)
 
             @wraps(func)
@@ -902,17 +922,70 @@ class AACF:
                 if out:
                     prompt += tpl["output_requirement"].format(out=out)
 
-                user_prompt = str(user_prompt_dict)
-                is_json = format.lower() == "json"
+                # Serialize user_prompt_dict, properly dumping Pydantic models
+                try:
+                    import json
+                    serialized_dict = {}
+                    for k, v in user_prompt_dict.items():
+                        if hasattr(v, "model_dump"):
+                            serialized_dict[k] = v.model_dump()
+                        else:
+                            serialized_dict[k] = v
+                    user_prompt = json.dumps(serialized_dict, ensure_ascii=False)
+                except Exception:
+                    user_prompt = str(user_prompt_dict)
 
-                result = llm_call(
-                    system_prompt=prompt,
-                    user_prompt=user_prompt,
-                    temperature=0.7,
-                    stream=stream,
-                    json_mode=is_json,
-                    llm_config=final_config,
-                )
+                is_json = format.lower() == "json"
+                
+                # Inject Pydantic Schema and force JSON mode
+                if pydantic_model:
+                    is_json = True
+                    try:
+                        import json
+                        schema_str = json.dumps(pydantic_model.model_json_schema(), ensure_ascii=False)
+                        prompt += f"\n\n[Strict Requirement]: You MUST output valid JSON strictly conforming to this JSON Schema:\n{schema_str}"
+                    except Exception:
+                        pass
+
+                # Execution with Retry Loop for Pydantic Validation
+                result = None
+                last_validation_error = None
+                
+                try:
+                    from pydantic import ValidationError
+                except ImportError:
+                    class ValidationError(Exception): pass
+                
+                for attempt in range(max_retries):
+                    result = llm_call(
+                        system_prompt=prompt,
+                        user_prompt=user_prompt,
+                        temperature=0.7,
+                        stream=stream,
+                        json_mode=is_json,
+                        llm_config=final_config,
+                    )
+
+                    # Only validate if we have a model and are not streaming
+                    if not pydantic_model or stream:
+                        break
+                    
+                    if not isinstance(result, str):
+                        raise RuntimeError("Expected string result from llm_call when stream is False")
+
+                    try:
+                        parsed_result = pydantic_model.model_validate_json(result)
+                        result = parsed_result
+                        last_validation_error = None
+                        break  # Success, exit retry loop
+                    except ValidationError as e:
+                        last_validation_error = e
+                        if attempt < max_retries - 1:
+                            user_prompt = f"{user_prompt}\n\n[System Feedback]: Your previous output failed schema validation with the following error:\n{e}\nPlease correct your output and return valid JSON conforming to the requested schema."
+
+                # If all retries failed due to validation, raise the last error
+                if pydantic_model and last_validation_error and not stream:
+                    raise last_validation_error
 
                 # 如果有条件分支，根据 LLM 返回值路由到对应分支
                 # If conditional branches exist, route to corresponding branch based on LLM return value

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aacf"
-version = "0.12.0"
+version = "0.12.1"
 description = "Agentic AI Compiler Framework — AI workflow pre-compilation and highly controllable scheduling execution engine"
 authors = [
     {name = "Developer", email = "developer@example.com"},

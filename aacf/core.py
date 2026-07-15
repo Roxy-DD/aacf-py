@@ -457,13 +457,14 @@ def _is_function_body_pass(func) -> bool:
                 body = node.body
 
                 def is_pass(stmt):
-                    return isinstance(stmt, ast.Pass) or (
-                        isinstance(stmt, ast.Expr) 
-                        and isinstance(stmt.value, ast.Constant) 
-                        and getattr(stmt.value, "value", None) is Ellipsis
-                    ) or (
-                        isinstance(stmt, ast.Expr)
-                        and type(stmt.value).__name__ == "Ellipsis"
+                    return (
+                        isinstance(stmt, ast.Pass)
+                        or (
+                            isinstance(stmt, ast.Expr)
+                            and isinstance(stmt.value, ast.Constant)
+                            and getattr(stmt.value, "value", None) is Ellipsis
+                        )
+                        or (isinstance(stmt, ast.Expr) and type(stmt.value).__name__ == "Ellipsis")
                     )
 
                 if len(body) == 1 and is_pass(body[0]):
@@ -650,14 +651,14 @@ def _inject_docstrings_on_exit():
                 _, start_lineno = inspect.getsourcelines(func)
             except Exception:
                 continue
-            funcs_to_inject.append((start_lineno, func, meta))
+            funcs_to_inject.append((start_lineno, func, meta, sig))
 
         if not funcs_to_inject:
             return
 
         funcs_to_inject.sort(key=lambda x: x[0], reverse=True)
 
-        for start_lineno, func, meta in funcs_to_inject:
+        for start_lineno, func, meta, sig in funcs_to_inject:
             name = func.__name__
             if name in docstring_ranges:
                 start, end = docstring_ranges[name]
@@ -687,9 +688,23 @@ def _inject_docstrings_on_exit():
                 f'{indent_str}"""\n',
                 f"{indent_str} 【AACF 智能节点 / Smart Node】: {who}\n",
                 f"{indent_str}🎯 核心任务 / Core Task: {what}\n",
-                f"{indent_str} 执行环境 / Environment: {where}\n",
-                f'{indent_str}"""\n',
+                f"{indent_str} 环境 / Environment: {where}\n",
             ]
+
+            out_req = meta.get("out", "")
+            if out_req:
+                docstring_lines.append(f"{indent_str}📤 输出要求 / Output Req: {out_req}\n")
+
+            if sig.return_annotation != inspect.Parameter.empty:
+                try:
+                    return_type_name = getattr(sig.return_annotation, "__name__", str(sig.return_annotation))
+                    docstring_lines.append(
+                        f"{indent_str}📦 返回格式 / Return Format: Strict JSON matching {return_type_name}\n"
+                    )
+                except Exception:
+                    pass
+
+            docstring_lines.append(f'{indent_str}"""\n')
 
             line = source_lines[colon_idx]
             colon_pos = line.find(":", line.rfind(")"))
@@ -853,6 +868,7 @@ class AACF:
             if sig.return_annotation != inspect.Parameter.empty:
                 try:
                     from pydantic import BaseModel
+
                     if isinstance(sig.return_annotation, type) and issubclass(sig.return_annotation, BaseModel):
                         pydantic_model = sig.return_annotation
                 except ImportError:
@@ -925,6 +941,7 @@ class AACF:
                 # Serialize user_prompt_dict, properly dumping Pydantic models
                 try:
                     import json
+
                     serialized_dict = {}
                     for k, v in user_prompt_dict.items():
                         if hasattr(v, "model_dump"):
@@ -936,12 +953,13 @@ class AACF:
                     user_prompt = str(user_prompt_dict)
 
                 is_json = format.lower() == "json"
-                
+
                 # Inject Pydantic Schema and force JSON mode
                 if pydantic_model:
                     is_json = True
                     try:
                         import json
+
                         schema_str = json.dumps(pydantic_model.model_json_schema(), ensure_ascii=False)
                         prompt += f"\n\n[Strict Requirement]: You MUST output valid JSON strictly conforming to this JSON Schema:\n{schema_str}"
                     except Exception:
@@ -950,12 +968,14 @@ class AACF:
                 # Execution with Retry Loop for Pydantic Validation
                 result = None
                 last_validation_error = None
-                
+
                 try:
                     from pydantic import ValidationError
                 except ImportError:
-                    class ValidationError(Exception): pass
-                
+
+                    class ValidationError(Exception):
+                        pass
+
                 for attempt in range(max_retries):
                     result = llm_call(
                         system_prompt=prompt,
@@ -969,7 +989,7 @@ class AACF:
                     # Only validate if we have a model and are not streaming
                     if not pydantic_model or stream:
                         break
-                    
+
                     if not isinstance(result, str):
                         raise RuntimeError("Expected string result from llm_call when stream is False")
 

@@ -29,3 +29,6 @@ build/
 .venv/
 env/
 venv/
+
+# Experimental data and reports
+experiments/

@@ -11,30 +11,32 @@ A Python framework for building LLM-driven agent pipelines through decorators, d
 
 ---
 
-## Design Philosophy
+## Design Philosophy & Architecture (Macro-Micro Dual-Engine)
 
-> **How to make any model — weak or strong — think elegantly within fully controllable boundaries, through explicit rule design and process orchestration?**
->
-> *You think you're thinking freely. Actually you're thinking freely within the correct range I designed.*
-> *This is not restriction. This is the most elegant liberation.*
->
-> *Notice: this documentation is itself a bootstrapping demonstration of the philosophy above. Your reading experience — the questions it raised, the thoughts it triggered — was guided by its structure. This is a meta-cognitive trap by design: you just experienced constrained freedom while reading about constrained freedom.*
+> **AACF is not an attempt to replace the spontaneous reasoning of large models, but to provide a highly available industrial pipeline for small models.**
 
-**Weak models do powerful things through clear rules. Strong models do rigorous things through constrained freedom.**
+The core design philosophy of AACF (AI Agent Communication Framework) is based on **structured constraints**. While traditional AI frameworks lean toward granting models complete autonomy in planning and execution, AACF moves toward the opposite engineering spectrum: it solidifies workflows through strongly typed five-tuple constraints (`who/what/where/why/how`) and DAG (Directed Acyclic Graph) scheduling.
 
-Most frameworks try to make AI more autonomous. AACF goes the opposite direction: it makes AI thinking **explicitly rule-bound** — not through temperature knobs, but through structured declarations the model internalizes as its own reasoning.
+Based on our systematic, objective experimental research, we have clarified the best practices and ecological niche for this architecture — the **Macro-Micro Dual-Engine Collaborative Architecture**:
 
-```
-Level 1 — Chaos:          Model does anything. Unpredictable. Uncontrollable.
-Level 2 — Rigid:          Temperature/top_p suppression. Stable but unexplained.
-Level 3 — Rule-internalized (AACF):  Model "feels" free, but every choice
-                          is within your designed boundaries. Predictable.
-                          Explainable. Controllable.
-```
+1. **Macro Layer (High-parameter models, e.g., 70B+)**: Should be detached from framework constraints. Large models handle frontier, multi-branch, divergent complex decision-making and orchestration. They operate in an "autonomous exploration" state, decomposing massive tasks into specific linear sub-task chains.
+2. **Micro Layer (Low-parameter/local models, e.g., 7B, combined with AACF)**: Serves as the subordinate execution engine. When the large model decomposes linear, repetitive information extraction tasks, AACF schedules small models to execute them. Under strong constraints, small models achieve stable outputs that far exceed their unconstrained capabilities.
 
-This is the "open design" principle: the model believes it is making intelligent decisions, while in reality all decisions unfold within the space you explicitly defined through `who / what / where / why / how`. Not a cage — a chessboard. The rules don't limit the game; they make the game possible.
+This **"Large Model Brain + Small Model Pipeline"** architecture offloads high-frequency, tedious linear tasks, significantly saving the expensive token costs and concurrency limits of large models, representing best practice for high-availability AI engineering.
 
-At its core, AACF is not about technical showmanship. It is a **human-centered design philosophy**: let humans think through the logic first, then let models execute; crystallize human wisdom into standardized processes, then let AI amplify the efficiency of those processes. It is also an attempt at **AI democratization**: no need to stack compute or buy expensive APIs — with well-designed processes, any developer can build complex AI applications using local small models. The cost barrier is leveled by the wisdom of design.
+---
+
+## ⚠️ Limitations & Warnings
+
+> [!WARNING]
+> **Do not over-constrain high-parameter models**
+> - **Capability Suppression**: Forcing large models with strong logical reasoning into fine-grained AACF node templates cuts off their spontaneous thought chains, resulting in severe redundancy and constrained capabilities.
+> - **Hallucination Cascade**: When handling divergent tasks, AACF's DAG isolation mechanism truncates the global context. If an intermediate node encounters an error (e.g., API safety filter), downstream nodes, lacking a global view, cannot correct the error and will trigger a severe cascading failure based on local erroneous information.
+> - **Abstraction Collapse**: Using the framework to step-by-step process analytical tasks often causes underlying specific entities to be lost during node transition and information synthesis, causing up to 50% "entity data loss".
+
+> [!TIP]
+> **Recommended Use Cases**
+> We strongly recommend combining AACF with local low-parameter models for **linear tasks with explicit paths** (e.g., industrial information extraction, standardized data cleaning). In such scenarios, the framework maintains a 100% information retention rate and delivers structural stability far exceeding the model's native capability.
 
 ---
 

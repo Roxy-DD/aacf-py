@@ -11,6 +11,57 @@ A Python framework for building LLM-driven agent pipelines through decorators, d
 
 ---
 
+## Authorship Boundary
+
+**The framework, its core logic, and the overall design are mine. Code implementation was assisted by AI.**
+
+### Origin
+
+I wanted to run Qianwen-3 (8B / 2B) locally on a **laptop with a 6 GB VRAM RTX 3060** and build an agent that manages my Obsidian vault. Neither the hardware nor the existing frameworks could carry it, so I built my own.
+
+**That constraint set the direction**: this is not a convenience layer for cloud-scale models. It exists to make **small models produce usable output under a hard compute ceiling**.
+
+### Core idea: guaranteeing boundaries
+
+The point is not to make the model smarter. It is to make sure it **can never leave the map**.
+
+> Constrain it to a known structure. However it moves, it will not hit a wall — speed and repetition are the variables, not "will it go out of bounds".
+
+Concretely: strongly-typed five-tuple constraints (`who/what/where/why/how`) pin down each step's input and output; decorator declarations plus dependency analysis generate the DAG, so the structure is fixed before execution; each node's option set is finite, and the model chooses within it rather than deciding structure.
+
+**The tradeoff is deliberate**: this guarantees **boundaries**, not **speed**. The framework does not make tasks faster — it guarantees that a task lands on *some* result.
+
+### Experimental finding: Macro-Micro dual engine
+
+The same constraints affect large and small models in opposite directions. That finding determined the architecture:
+
+| Layer | Model | Approach | Why |
+|---|---|---|---|
+| **Macro** | Large (70B+) | **Stay outside framework constraints**, explore autonomously | Forcing fine-grained node templates **cuts its self-organized reasoning chain**, causing redundancy and capability loss |
+| **Micro** | Small (7B class) + AACF | **Execute under tight constraints** | On linear, repetitive tasks, output becomes **more stable than unconstrained** |
+
+**Three failure modes measured** when over-constraining strong models:
+
+- **Capability suppression** — the self-organized chain is severed
+- **Hallucination cascade** — DAG isolation cuts global context, so a failed intermediate node cannot be corrected downstream
+- **Abstraction collapse** — entities are lost while passing between nodes, with **entity data loss measured at up to 50%**
+
+**Constraint strength therefore has an operating range that must track model capability.** This came from controlled comparison, not from a design assumption.
+
+### Other design work
+
+Five-tuple field definitions, DAG scheduling and retry strategy, package structure and API boundaries, LangChain Tool wrapping.
+
+### AI-assisted
+
+All code implementation for the above designs, documentation drafting, technical research, and bug fixing.
+
+---
+
+
+---
+
+
 ## Design Philosophy & Architecture (Macro-Micro Dual-Engine)
 
 > **AACF is not an attempt to replace the spontaneous reasoning of large models, but to provide a highly available industrial pipeline for small models.**
